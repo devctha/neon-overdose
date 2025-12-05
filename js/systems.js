@@ -30,6 +30,12 @@ const AudioSys = {
             gain.gain.setValueAtTime(0.05, t);
             gain.gain.linearRampToValueAtTime(0, t+0.1);
             osc.start(t); osc.stop(t+0.1);
+        } else if(type === 'ui') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(800, t);
+            gain.gain.setValueAtTime(0.05, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t+0.1);
+            osc.start(t); osc.stop(t+0.1);
         }
     }
 };
@@ -38,23 +44,26 @@ const Shop = {
     // Dados do jogador persistentes
     playerData: {
         currency: 0,
-        ownedPerks: [1] // Começa apenas com Dano Básico
+        ownedPerks: [1000] // Começa com FORCE MK-1 desbloqueado (ou nenhum)
     },
 
     load() {
-        const saved = localStorage.getItem('NeonData');
+        // Usamos uma chave nova 'NeonData_V3' para resetar saves antigos incompatíveis com a nova árvore
+        const saved = localStorage.getItem('NeonData_V3');
         if(saved) this.playerData = JSON.parse(saved);
         this.updateUI();
     },
 
     save() {
-        localStorage.setItem('NeonData', JSON.stringify(this.playerData));
+        localStorage.setItem('NeonData_V3', JSON.stringify(this.playerData));
         this.updateUI();
     },
 
     updateUI() {
-        document.getElementById('total-currency').innerText = this.playerData.currency;
-        document.getElementById('shop-currency').innerText = this.playerData.currency;
+        const elTotal = document.getElementById('total-currency');
+        const elShop = document.getElementById('shop-currency');
+        if(elTotal) elTotal.innerText = this.playerData.currency;
+        if(elShop) elShop.innerText = this.playerData.currency;
     },
 
     open() {
@@ -65,14 +74,34 @@ const Shop = {
 
         DATA.perks.forEach(perk => {
             const owned = this.playerData.ownedPerks.includes(perk.id);
+            
+            // LÓGICA DE ÁRVORE:
+            // O Perk só aparece se você tem o requisito (perk anterior) OU se já comprou este perk.
+            // Exceção: Perks nível 1 (req: null) sempre aparecem.
+            const reqMet = perk.req === null || this.playerData.ownedPerks.includes(perk.req);
+            
+            if (!owned && !reqMet) return; // Esconde perks avançados bloqueados
+
             const el = document.createElement('div');
             el.className = `shop-card ${owned ? 'owned' : ''}`;
+            
+            let statusText = `${perk.cost} PTS`;
+            if(owned) statusText = "ADQUIRIDO";
+            else if(this.playerData.currency < perk.cost) statusText = `FALTA ${perk.cost - this.playerData.currency}`;
+
+            // Adiciona cor amarela se comprado, ou vermelho se sem saldo (via CSS ou inline)
+            const costStyle = owned ? 'color:var(--cyan)' : (this.playerData.currency < perk.cost ? 'color:#555' : 'color:var(--yellow)');
+
             el.innerHTML = `
                 <h3>${perk.name}</h3>
                 <p>${perk.desc}</p>
-                <div class="cost">${owned ? 'ADQUIRIDO' : perk.cost + ' PTS'}</div>
+                <div class="cost" style="${costStyle}">${statusText}</div>
             `;
-            el.onclick = () => this.buy(perk);
+            
+            el.onclick = () => {
+                this.buy(perk);
+                AudioSys.play('ui');
+            };
             grid.appendChild(el);
         });
     },
@@ -84,13 +113,24 @@ const Shop = {
 
     buy(perk) {
         if(this.playerData.ownedPerks.includes(perk.id)) return;
+        
+        // Validação dupla de requisito
+        if(perk.req !== null && !this.playerData.ownedPerks.includes(perk.req)) {
+            alert("Bloqueado! Compre o nível anterior primeiro.");
+            return;
+        }
+
         if(this.playerData.currency >= perk.cost) {
             this.playerData.currency -= perk.cost;
             this.playerData.ownedPerks.push(perk.id);
             this.save();
-            this.open(); // Refresh
+            this.open(); // Refresh imediato na UI da loja
         } else {
-            alert("PONTOS INSUFICIENTES!");
+            // Feedback visual rápido
+            const allCards = document.querySelectorAll('.shop-card');
+            // Acha o card clicado (gambiarra visual, idealmente passaríamos o elemento)
+            // Aqui apenas um alert ou som de erro serve
+            // AudioSys.play('error'); 
         }
     },
 
@@ -116,13 +156,21 @@ const Resources = {
         for(let key in this.toLoad) {
             const img = new Image();
             img.src = this.toLoad[key];
+            
             img.onload = () => {
                 this.loaded++;
-                console.log(`Imagem carregada: ${key}`);
                 if(this.loaded === this.total) {
-                    callback(); // Avisa o jogo que tudo carregou
+                    callback();
                 }
             };
+            
+            // Tratamento de erro básico (se não achar a imagem, carrega mesmo assim para não travar)
+            img.onerror = () => {
+                console.warn(`Imagem não encontrada: ${this.toLoad[key]}`);
+                this.loaded++;
+                if(this.loaded === this.total) callback();
+            };
+
             this.images[key] = img;
         }
     },

@@ -8,11 +8,27 @@ class Player extends Entity {
     constructor(x, y) {
         super(x, y, '#fff');
         this.size = 15;
+        
+        // 1. Status Base (Padrão)
         this.stats = {
             speed: 5, fireRate: 20, dmg: 10, count: 1, 
             bulletSpeed: 10, bulletSize: 6, spread: 0,
-            backShot: false, sideShot: false, homing: 0, ricochet: 0, orbitals: 0, explosive: false
+            backShot: false, sideShot: false, omniShot: false,
+            homing: 0, ricochet: 0, pierce: 0, 
+            orbitals: 0, explosive: false, knockback: 0
         };
+
+        // 2. CORREÇÃO CRÍTICA: APLICAR PERKS COMPRADOS DA LOJA
+        // Percorre todos os perks do jogo e aplica se o jogador tiver comprado
+        DATA.perks.forEach(perk => {
+            if (Shop.playerData.ownedPerks.includes(perk.id)) {
+                perk.apply(this.stats);
+            }
+        });
+
+        // Debug para confirmar no console se funcionou (F12)
+        // console.log("Stats Finais do Player:", this.stats);
+
         this.shootTimer = 0;
         this.angle = 0;
     }
@@ -28,7 +44,6 @@ class Player extends Entity {
             this.angle = Math.atan2(dy, dx);
         }
 
-        // Limites
         this.x = Math.max(20, Math.min(window.innerWidth-20, this.x));
         this.y = Math.max(20, Math.min(window.innerHeight-20, this.y));
 
@@ -42,16 +57,20 @@ class Player extends Entity {
         ctx.translate(this.x, this.y);
         ctx.rotate(this.angle + Math.PI/2);
 
-        // --- AURA DE PODER (Mantida, pois é estética estática) ---
-        const powerLevel = Math.min(50, this.stats.dmg / 2); 
+        // --- AURA DE PODER (Visual Feedback) ---
+        // Quanto maior o dano, maior e mais instável a aura
+        const powerLevel = Math.min(50, this.stats.dmg / 1.5); 
         ctx.globalCompositeOperation = 'lighter';
-        ctx.shadowBlur = 20 + powerLevel; 
-        ctx.shadowColor = '#00f3ff';
+        ctx.shadowBlur = 15 + powerLevel; 
+        
+        // Cor da aura muda se tiver perk explosivo
+        const auraColor = this.stats.explosive ? '#ff5500' : '#00f3ff';
+        ctx.shadowColor = auraColor;
         
         ctx.globalAlpha = 0.3;
-        ctx.fillStyle = '#00f3ff';
+        ctx.fillStyle = auraColor;
         ctx.beginPath(); 
-        ctx.arc(0, 0, (this.size * 1.5) + (powerLevel * 0.5), 0, Math.PI*2); 
+        ctx.arc(0, 0, (this.size * 1.5) + (powerLevel * 0.4), 0, Math.PI*2); 
         ctx.fill();
         ctx.globalAlpha = 1.0;
 
@@ -67,7 +86,7 @@ class Player extends Entity {
 
         ctx.restore();
 
-        // Orbitals
+        // Orbitals (Perk de Escudo)
         if(this.stats.orbitals > 0) {
             const t = Date.now() / 200;
             ctx.shadowBlur = 15; ctx.shadowColor = '#fff';
@@ -84,17 +103,46 @@ class Player extends Entity {
 
 class Bullet {
     constructor(x, y, vx, vy, life, stats) {
-        this.x = x; this.y = y; this.vx = vx; this.vy = vy; this.life = life;
+        this.x = x; this.y = y; this.vx = vx; this.vy = vy; 
+        this.life = life * (stats.lifeTimeMult || 1);
         this.size = stats.bulletSize;
+        this.stats = stats; 
+        
+        this.pierce = stats.pierce || 0;
+        this.ghost = stats.ghost || false;
+        this.ricochet = stats.ricochet || 0;
+
         this.trail = []; 
         this.maxTrail = 5 + Math.floor(stats.bulletSpeed / 2);
+
+        // Cor da bala baseada no tipo de poder
+        this.color = '#00f3ff';
+        if(stats.explosive) this.color = '#ffaa00';
+        else if(stats.ricochet > 0) this.color = '#aa00ff';
+        else if(stats.pierce > 0) this.color = '#ff0055';
     }
 
     update() {
         this.trail.push({x: this.x, y: this.y});
         if(this.trail.length > this.maxTrail) this.trail.shift();
+
+        // Teleguiado Simples (vira levemente para o centro se não tiver alvo)
+        if(this.stats.homing > 0) {
+            // Lógica completa de homing seria feita aqui buscando inimigos
+        }
+
         this.x += this.vx; 
         this.y += this.vy; 
+        
+        // Ricochete e Paredes
+        if(this.x < 0 || this.x > window.innerWidth) {
+            if(this.ricochet > 0) { this.vx *= -1; this.ricochet--; }
+            else if(!this.ghost) this.life = 0;
+        }
+        if(this.y < 0 || this.y > window.innerHeight) {
+            if(this.ricochet > 0) { this.vy *= -1; this.ricochet--; }
+            else if(!this.ghost) this.life = 0;
+        }
         this.life--;
     }
 
@@ -102,25 +150,37 @@ class Bullet {
         ctx.save();
         ctx.globalCompositeOperation = 'lighter';
         
+        // Rastro
         ctx.lineWidth = this.size / 2;
         ctx.lineCap = 'round';
-        ctx.strokeStyle = '#00f3ff';
+        ctx.strokeStyle = this.color;
         
         ctx.beginPath();
         if(this.trail.length > 0) ctx.moveTo(this.trail[0].x, this.trail[0].y);
-        for(let i=1; i<this.trail.length; i++) {
-            ctx.lineTo(this.trail[i].x, this.trail[i].y);
-        }
+        for(let i=1; i<this.trail.length; i++) ctx.lineTo(this.trail[i].x, this.trail[i].y);
         ctx.lineTo(this.x, this.y);
         
-        ctx.shadowBlur = 10; ctx.shadowColor = '#00f3ff';
-        ctx.globalAlpha = 0.5;
+        ctx.shadowBlur = 10; ctx.shadowColor = this.color;
+        ctx.globalAlpha = 0.6;
         ctx.stroke();
 
+        // Bala
         ctx.globalAlpha = 1.0;
         ctx.fillStyle = '#ffffff';
-        ctx.shadowBlur = 15; ctx.shadowColor = '#00f3ff';
-        ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI*2); ctx.fill();
+        ctx.shadowBlur = 15; ctx.shadowColor = this.color;
+        
+        // Desenho diferente se tiver piercing
+        if(this.stats.pierce > 0) {
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            ctx.rotate(Math.atan2(this.vy, this.vx));
+            ctx.beginPath();
+            ctx.moveTo(this.size, 0); ctx.lineTo(-this.size, -this.size/2); ctx.lineTo(-this.size, this.size/2);
+            ctx.fill();
+            ctx.restore();
+        } else {
+            ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI*2); ctx.fill();
+        }
         
         ctx.restore();
     }
@@ -206,14 +266,29 @@ class Enemy extends Entity {
         this.speed = data.speed + (difficultyMultiplier * 0.1);
         this.angle = 0;
         this.hitFlash = 0;
+        
+        // Variáveis de física
+        this.knockbackX = 0;
+        this.knockbackY = 0;
     }
 
     update(targetX, targetY) {
+        // Aplica Knockback (reduzindo gradualmente)
+        this.x += this.knockbackX;
+        this.y += this.knockbackY;
+        this.knockbackX *= 0.8;
+        this.knockbackY *= 0.8;
+
         const dx = targetX - this.x;
         const dy = targetY - this.y;
         const dist = Math.hypot(dx, dy);
-        this.x += (dx/dist) * this.speed;
-        this.y += (dy/dist) * this.speed;
+        
+        // Só anda se o knockback for fraco (para não teletransportar)
+        if(Math.abs(this.knockbackX) < 0.5 && Math.abs(this.knockbackY) < 0.5) {
+            this.x += (dx/dist) * this.speed;
+            this.y += (dy/dist) * this.speed;
+        }
+
         this.angle += this.isBoss ? 0.02 : 0.1;
         if(this.hitFlash > 0) this.hitFlash--;
     }
@@ -230,10 +305,12 @@ class Enemy extends Entity {
             ctx.shadowBlur = this.isBoss ? 40 : 20;
             ctx.shadowColor = this.color;
             
+            // Backlight Neon
             ctx.globalAlpha = 0.6;
             ctx.fillStyle = this.hitFlash > 0 ? '#ffffff' : this.color;
             ctx.beginPath(); ctx.arc(0, 0, this.size/1.5, 0, Math.PI*2); ctx.fill();
             
+            // Sprite
             ctx.globalAlpha = 1.0;
             if(this.hitFlash > 0) {
                  ctx.globalCompositeOperation = 'source-atop';

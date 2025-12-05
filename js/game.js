@@ -58,7 +58,8 @@ const Game = {
         this.loop++;
         this.timer = 10 + (this.loop * 0.5); // Tempo aumenta levemente a cada loop
         
-        // Limpa inimigos menores, mantém apenas o caos do Boss se houver (opcional)
+        // Limpa inimigos menores, mantém apenas o caos do Boss se houver
+        // (Isso impede que o jogo fique impossível muito rápido)
         this.enemies = this.enemies.filter(e => e.isBoss); 
         
         // Update HUD
@@ -73,7 +74,7 @@ const Game = {
         c= '0x'+c.join('');
         const rgbaColor = `rgba(${[(c>>16)&255, (c>>8)&255, c&255].join(',')}, 0.4)`;
 
-        // Injeta as cores no CSS
+        // Injeta as cores no CSS para o grid mudar
         const root = document.documentElement;
         root.style.setProperty('--phase-color', rgbaColor);
         root.style.setProperty('--phase-bg', phase.bg);
@@ -215,19 +216,25 @@ const Game = {
                     }
                 }
             });
-            
-            // Atualiza Barra de Vida do Boss
-            if(e.isBoss) {
-                const hpPct = (e.hp / e.maxHp) * 100;
-                document.getElementById('boss-hp').style.width = hpPct + '%';
-            }
         });
+
+        // CORREÇÃO: Verifica se existe ALGUM boss vivo na tela para controlar a barra de HP
+        const activeBoss = this.enemies.find(e => e.isBoss);
+        if (activeBoss) {
+            document.getElementById('boss-container').classList.remove('hidden');
+            const hpPct = Math.max(0, (activeBoss.hp / activeBoss.maxHp) * 100);
+            document.getElementById('boss-hp').style.width = hpPct + '%';
+        } else {
+            document.getElementById('boss-container').classList.add('hidden');
+        }
 
         // Respawn de inimigos comuns se acabarem (para não ficar vazio)
         const hasBoss = this.enemies.some(e => e.isBoss);
         if(!hasBoss && this.enemies.length < 3) {
              if(Math.random() < 0.05) this.enemies.push(new Enemy(false, this.loop));
         }
+
+        this.ctx.restore();
     },
 
     fireBullet() {
@@ -246,6 +253,7 @@ const Game = {
         spawn(angle);
         if(this.player.stats.backShot) spawn(angle + Math.PI);
         if(this.player.stats.sideShot) { spawn(angle + Math.PI/2); spawn(angle - Math.PI/2); }
+        if(this.player.stats.omniShot) { for(let i=0; i<8; i++) spawn(angle + (i * Math.PI/4)); }
         
         // SEM EFEITOS DE RECUO NA NAVE (Apenas Shake e Som)
         this.shake += Math.min(5, 1 + (this.player.stats.dmg / 50)); 
@@ -279,11 +287,12 @@ const Game = {
         const container = document.getElementById('perk-options');
         container.innerHTML = '';
 
-        // Filtra perks que o jogador COMPROU na loja
+        // Filtra perks que o jogador COMPROU na loja e possui no inventário
         const availablePool = DATA.perks.filter(p => Shop.playerData.ownedPerks.includes(p.id));
         
         // Seleciona até 3 aleatórios
         const options = [];
+        // Se tiver menos de 3 perks comprados, mostra os que tem
         const pickCount = Math.min(3, availablePool.length);
 
         // Clona para não afetar o array original
@@ -308,11 +317,12 @@ const Game = {
                 p.apply(this.player.stats);
                 document.getElementById('perk-layer').classList.add('hidden');
                 this.state = 'PLAYING';
-                this.startLoop(); 
+                this.startLoop(); // Avança para o próximo loop/fase
             };
             container.appendChild(el);
         });
         
+        // Se não tiver perks (deck vazio ou erro), avança direto para não travar o jogo
         if(options.length === 0) {
             document.getElementById('perk-layer').classList.add('hidden');
             this.state = 'PLAYING';
@@ -328,6 +338,7 @@ const Game = {
         document.getElementById('end-score').innerText = this.score;
         document.getElementById('end-loop').innerText = this.loop;
         
+        // Conversão de Score para Créditos da Loja (10% do score)
         const credits = Math.floor(this.score * 0.1);
         document.getElementById('end-credits').innerText = credits;
         Shop.addCurrency(credits);
