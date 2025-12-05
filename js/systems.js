@@ -102,7 +102,7 @@ const Shop = {
 
 const Resources = {
     toLoad: {
-        player: 'img/player.svg',
+        player: 'img/player.png',
         enemy: 'img/enemy.svg',
         boss: 'img/boss.svg'
     },
