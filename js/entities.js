@@ -21,8 +21,12 @@ class Player extends Entity {
         this.stats = {
             speed: 5, fireRate: 20, dmg: 10, count: 1, 
             bulletSpeed: 10, bulletSize: 6, spread: 0,
+            
+            // ATUALIZADO: Homing 0.08 faz o tiro padrão ser levemente teleguiado
+            homing: 0.08, 
+
             backShot: false, sideShot: false, omniShot: false,
-            homing: 0, ricochet: 0, pierce: 0, 
+            ricochet: 0, pierce: 0, 
             orbitals: 0, explosive: false, knockback: 0, hasShield: false,
             
             // --- NOVOS STATUS JJK ---
@@ -31,9 +35,8 @@ class Player extends Entity {
             hollowPurple: false  // Hollow Purple
         };
 
-        // NOTA: O loop de "Shop.playerData" foi REMOVIDO aqui.
-        // A loja agora serve apenas para DESBLOQUEAR a carta no pool de sorteio (game.js),
-        // não para dar o poder imediatamente. Isso cria o loop de gameplay Roguelite.
+        // NOTA: A Loja (Shop) não aplica status aqui diretamente.
+        // Ela apenas desbloqueia os cards para aparecerem no sorteio (Game.openPerkSelection).
     }
 
     update(keys) {
@@ -139,8 +142,37 @@ class Bullet {
         this.trail.push({x: this.x, y: this.y});
         if(this.trail.length > this.maxTrail) this.trail.shift();
 
-        // Homing: Se for teleguiado, ajusta a velocidade em direção ao inimigo mais próximo
-        // (Lógica completa requer acesso ao array de inimigos, simplificado aqui para manter performance)
+        // --- LÓGICA DE HOMING (TIRO TELEGUIADO) ---
+        // Se homing > 0, a bala busca o inimigo mais próximo
+        if(this.stats.homing > 0 && typeof Game !== 'undefined') {
+            let closest = null;
+            let minDist = 500; // Raio de visão da bala
+
+            Game.enemies.forEach(e => {
+                const d = Math.hypot(e.x - this.x, e.y - this.y);
+                if(d < minDist) { minDist = d; closest = e; }
+            });
+
+            if(closest) {
+                // Matemática de Vetores para curvar a bala
+                const desiredAngle = Math.atan2(closest.y - this.y, closest.x - this.x);
+                const currentAngle = Math.atan2(this.vy, this.vx);
+                
+                // Interpolação angular (Lerp) para curva suave
+                let diff = desiredAngle - currentAngle;
+                // Ajuste para evitar o "giro 360"
+                while (diff <= -Math.PI) diff += Math.PI*2;
+                while (diff > Math.PI) diff -= Math.PI*2;
+                
+                const newAngle = currentAngle + (diff * this.stats.homing);
+                
+                // Recalcula velocidade mantendo a magnitude (speed) original
+                const speed = Math.hypot(this.vx, this.vy);
+                this.vx = Math.cos(newAngle) * speed;
+                this.vy = Math.sin(newAngle) * speed;
+            }
+        }
+        // ---------------------------------------------
         
         this.x += this.vx; 
         this.y += this.vy; 

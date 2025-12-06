@@ -1,68 +1,94 @@
 // js/perks.js
 
-const JJK_PERKS = [
+// --- 1. PERKS DE ANIME (JUJUTSU KAISEN & OTHERS) ---
+const ANIME_PERKS = [
     { 
         id: 700, 
         name: "RYOIKI TENKAI: MALEVOLENT SHRINE", 
-        desc: "Cria uma área de cortes invisíveis ao redor do player.", 
+        desc: "Cria cortes invisíveis ao redor do jogador (Dano em Área).", 
         cost: 10000, 
         rarity: "legend", 
         req: null,
-        type: "domain", // Novo identificador
         apply: s => { s.domainShrine = true; s.dmg *= 1.2; } 
     },
     { 
         id: 701, 
         name: "RYOIKI TENKAI: INFINITE VOID", 
-        desc: "Stuna inimigos aleatoriamente com sobrecarga de informação.", 
+        desc: "Inimigos congelam por sobrecarga de informação.", 
         cost: 12000, 
         rarity: "legend", 
         req: null,
-        type: "domain",
         apply: s => { s.domainVoid = true; } 
     },
     { 
         id: 702, 
         name: "HOLLOW PURPLE", 
-        desc: "Tiros têm chance de apagar a existência (Insta-kill + Tamanho gigante).", 
+        desc: "Tiros tornam-se massa imaginária gigante que apaga tudo.", 
         cost: 15000, 
         rarity: "legend", 
         req: null,
-        apply: s => { s.hollowPurple = true; s.bulletSize += 4; } 
+        apply: s => { s.hollowPurple = true; s.bulletSize += 10; s.pierce += 100; s.dmg *= 2; } 
+    },
+    {
+        id: 703,
+        name: "BLACK FLASH",
+        desc: "Crítico garantido que distorce o espaço (Dano x2.5).",
+        cost: 8000,
+        rarity: "rare",
+        req: null,
+        apply: s => { s.blackFlash = true; }
     }
 ];
 
+// --- 2. PERKS PADRÃO (Utilidade e Armas) ---
 const STANDARD_PERKS = [
-    // Seus perks originais de Double Tap, Ricochet, etc...
     { id: 100, name: "DOUBLE TAP", desc: "+1 Projétil", cost: 500, req: null, rarity: "common", apply: s => s.count += 1 },
     { id: 101, name: "TRIPLE THREAT", desc: "+2 Projéteis, +Spread", cost: 1500, req: 100, rarity: "rare", apply: s => { s.count += 2; s.spread += 0.1; } },
+    { id: 102, name: "SHOTGUN GOD", desc: "+6 Projéteis, Caos", cost: 4000, req: 101, rarity: "legend", apply: s => { s.count += 6; s.spread += 0.5; } },
+    
+    { id: 200, name: "SMART BULLETS", desc: "Aumenta perseguição dos tiros", cost: 1000, req: null, rarity: "rare", apply: s => s.homing += 0.1 },
+    
     { id: 221, name: "GHOST", desc: "Atravessa Paredes", cost: 5000, req: null, rarity: "legend", apply: s => { s.ghost = true; } },
-    // Adicione o resto aqui...
+    
+    { id: 300, name: "ORBITAL I", desc: "+1 Esfera Defensiva", cost: 1000, req: null, rarity: "rare", apply: s => s.orbitals += 1 },
+    { id: 500, name: "NUKE TOUCH", desc: "Explosão Gigante ao matar", cost: 5000, req: null, rarity: "legend", apply: s => { s.explosive = true; s.dmg *= 1.5; } }
 ];
 
-// Gerador de Status (MK-1 até MK-20)
+// --- 3. GERADOR DE STATUS (MK-1 a MK-10) ---
 const GENERATED_PERKS = [];
 const STAT_TYPES = [
-    { name: "FORCE", stat: "dmg", val: 1.5, desc: "Dano" },
-    { name: "SPEED", stat: "fireRate", val: 0.85, desc: "Fire Rate" },
+    { name: "FORCE", stat: "dmg", val: 1.5, desc: "Dano Massivo" },
+    { name: "TRIGGER", stat: "fireRate", val: 0.85, desc: "Fire Rate" },
+    { name: "VELOCITY", stat: "bulletSpeed", val: 1.3, desc: "Vel. Bala" },
+    { name: "MASS", stat: "bulletSize", val: 1.4, desc: "Tamanho Bala" },
+    { name: "ENGINE", stat: "speed", val: 1, add: 1.5, desc: "Velocidade Nave" }
 ];
 
-let pId = 2000;
-STAT_TYPES.forEach(t => {
-    let lastId = null;
+let globalId = 2000;
+
+STAT_TYPES.forEach(type => {
+    let previousId = null;
     for(let i=1; i<=10; i++) {
+        let rarity = i > 7 ? "legend" : (i > 4 ? "rare" : "common");
+        let cost = Math.floor(200 * Math.pow(1.5, i)); 
+        let descVal = type.add ? `+${(type.add * i).toFixed(1)}` : `x${Math.pow(type.val, i).toFixed(1)}`;
+
         GENERATED_PERKS.push({
-            id: pId,
-            name: `${t.name} MK-${i}`,
-            desc: `Aumenta ${t.desc}`,
-            cost: i * 500,
-            req: lastId,
-            rarity: i > 7 ? "legend" : (i > 4 ? "rare" : "common"),
-            apply: s => { if(t.val < 1) s[t.stat] *= t.val; else s[t.stat] *= t.val; }
+            id: globalId,
+            name: `${type.name} MK-${i}`,
+            desc: `${descVal} ${type.desc}`,
+            cost: cost,
+            req: previousId,
+            rarity: rarity,
+            apply: s => {
+                if(type.add) s[type.stat] += type.add * 2;
+                else s[type.stat] *= type.val;
+            }
         });
-        lastId = pId++;
+        previousId = globalId;
+        globalId++;
     }
 });
 
-// Junta tudo numa variável global
-const ALL_PERKS = [...JJK_PERKS, ...STANDARD_PERKS, ...GENERATED_PERKS];
+// Exporta tudo junto
+const ALL_PERKS = [...ANIME_PERKS, ...STANDARD_PERKS, ...GENERATED_PERKS];
