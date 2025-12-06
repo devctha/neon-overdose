@@ -19,24 +19,38 @@ class Player extends Entity {
         // 1. Status Base (O jogador começa "pelado")
         // Isso garante o RESET TOTAL ao morrer.
         this.stats = {
+            // --- ATRIBUTOS BÁSICOS ---
             speed: 5, fireRate: 20, dmg: 10, count: 1, 
             bulletSpeed: 10, bulletSize: 6, spread: 0,
+            maxHp: 100, hp: 100, armor: 0,
             
-            // ATUALIZADO: Homing 0.08 faz o tiro padrão ser levemente teleguiado
+            // --- MECÂNICAS PADRÃO ---
             homing: 0.08, 
-
             backShot: false, sideShot: false, omniShot: false,
             ricochet: 0, pierce: 0, 
             orbitals: 0, explosive: false, knockback: 0, hasShield: false,
             
-            // --- NOVOS STATUS JJK ---
-            domainShrine: false, // Malevolent Shrine
-            domainVoid: false,   // Infinite Void
-            hollowPurple: false  // Hollow Purple
+            // --- NOVOS STATUS (ROGUELITE / TECH / JJK) ---
+            lifesteal: false, poison: false, execute: false, 
+            chainLightning: false, frost: false, burn: false,
+            splitOnHit: false, ghost: false, bossDmg: false,
+            magnetRange: 0, thorns: false, cluster: false,
+
+            // JJK
+            domainShrine: false, domainVoid: false, hollowPurple: false,
+            blackFlash: false, sixEyes: false, rctHeal: false,
+            mahoraga: false, soulTouch: false, cursedSpeech: false,
+            blueLapse: false, redReversal: false, simpleDomain: false,
+            prisonRealm: false, regen: 0, // Adicionado regen aqui para MAHORAGA/RCT
+
+            // Tech / Cyberpunk
+            sandevistan: false, dodge: 0, revive: false, missileChance: 0,
+            monowire: false, gorilla: false, camo: false, hackBurn: false,
+            hackShock: false, berserk: false, mantis: false, synapse: false
         };
 
-        // NOTA: A Loja (Shop) não aplica status aqui diretamente.
-        // Ela apenas desbloqueia os cards para aparecerem no sorteio (Game.openPerkSelection).
+        // Garante que o HP atual comece igual ao Max
+        this.hp = this.stats.maxHp;
     }
 
     update(keys) {
@@ -70,6 +84,7 @@ class Player extends Entity {
         let auraColor = '#00f3ff';
         if(this.stats.domainShrine) auraColor = '#ff0055'; // Vermelho Sukuna
         else if(this.stats.domainVoid) auraColor = '#a600ff'; // Roxo Gojo
+        else if(this.stats.hollowPurple) auraColor = '#bc13fe'; // Roxo
         else if(this.stats.explosive) auraColor = '#ff5500';
         else if(this.stats.hasShield) auraColor = '#00ff00';
 
@@ -130,9 +145,8 @@ class Bullet {
         this.trail = []; 
         this.maxTrail = 5 + Math.floor(stats.bulletSpeed / 2);
 
-        // Cor da bala baseada no tipo de poder
         this.color = '#00f3ff';
-        if(stats.hollowPurple) this.color = '#bc13fe'; // Roxo Vazio
+        if(stats.hollowPurple) this.color = '#bc13fe'; 
         else if(stats.explosive) this.color = '#ffaa00';
         else if(stats.ricochet > 0) this.color = '#aa00ff';
         else if(stats.pierce > 0) this.color = '#ff0055';
@@ -143,10 +157,9 @@ class Bullet {
         if(this.trail.length > this.maxTrail) this.trail.shift();
 
         // --- LÓGICA DE HOMING (TIRO TELEGUIADO) ---
-        // Se homing > 0, a bala busca o inimigo mais próximo
-        if(this.stats.homing > 0 && typeof Game !== 'undefined') {
+        if(this.stats.homing > 0 && typeof Game !== 'undefined' && Game.enemies) {
             let closest = null;
-            let minDist = 500; // Raio de visão da bala
+            let minDist = 600; 
 
             Game.enemies.forEach(e => {
                 const d = Math.hypot(e.x - this.x, e.y - this.y);
@@ -154,19 +167,15 @@ class Bullet {
             });
 
             if(closest) {
-                // Matemática de Vetores para curvar a bala
                 const desiredAngle = Math.atan2(closest.y - this.y, closest.x - this.x);
                 const currentAngle = Math.atan2(this.vy, this.vx);
                 
-                // Interpolação angular (Lerp) para curva suave
                 let diff = desiredAngle - currentAngle;
-                // Ajuste para evitar o "giro 360"
                 while (diff <= -Math.PI) diff += Math.PI*2;
                 while (diff > Math.PI) diff -= Math.PI*2;
                 
                 const newAngle = currentAngle + (diff * this.stats.homing);
                 
-                // Recalcula velocidade mantendo a magnitude (speed) original
                 const speed = Math.hypot(this.vx, this.vy);
                 this.vx = Math.cos(newAngle) * speed;
                 this.vy = Math.sin(newAngle) * speed;
@@ -194,17 +203,14 @@ class Bullet {
         
         // --- VISUAL HOLLOW PURPLE (VAZIO ROXO) ---
         if(this.stats.hollowPurple) {
-             // Núcleo Branco
              const grd = ctx.createRadialGradient(this.x, this.y, this.size/4, this.x, this.y, this.size*1.5);
              grd.addColorStop(0, "white");
-             grd.addColorStop(0.4, "#bc13fe"); // Roxo Neon
+             grd.addColorStop(0.4, "#bc13fe");
              grd.addColorStop(1, "transparent");
              
              ctx.fillStyle = grd;
-             // Desenha bem maior que o normal
              ctx.beginPath(); ctx.arc(this.x, this.y, this.size * 2, 0, Math.PI*2); ctx.fill();
              
-             // Partículas de "Apagar Existência" (Static Glitch ao redor da bala)
              ctx.fillStyle = '#fff';
              if(Math.random() > 0.5) {
                 const rx = this.x + (Math.random()-0.5) * this.size * 3;
@@ -213,7 +219,7 @@ class Bullet {
              }
              
              ctx.restore();
-             return; // Retorna para não desenhar a bala comum por cima
+             return; 
         }
 
         // --- RASTRO PADRÃO ---
@@ -311,9 +317,13 @@ class Enemy extends Entity {
     constructor(isBoss, difficultyMultiplier) {
         super(0, 0, '#f00');
         this.isBoss = isBoss;
-        let data = isBoss 
-            ? DATA.bosses[Math.floor(Math.random() * DATA.bosses.length)]
-            : { size: 20, hpMult: 0.1, speed: 2, color: '#f00', name: 'Drone' };
+        
+        // Novo: Seleção aleatória de dados, incluindo os novos comportamentos
+        const pool = isBoss ? DATA.bosses : DATA.enemies;
+        // Encontra o objeto de dados correspondente (garantindo que DATA.enemies exista)
+        let data = pool && pool.length > 0 
+            ? pool[Math.floor(Math.random() * pool.length)]
+            : { size: 20, hpMult: 0.1, speed: 2, color: '#f00', name: 'Drone', behavior: null };
 
         const side = Math.floor(Math.random()*4);
         const w = window.innerWidth, h = window.innerHeight;
@@ -332,12 +342,54 @@ class Enemy extends Entity {
         this.angle = 0;
         this.hitFlash = 0;
         
+        // --- NOVAS PROPRIEDADES DE COMPORTAMENTO ---
+        this.behavior = data.behavior; 
+        this.erraticTimer = 0; // Para Glitch-Host
+        this.baseSpeed = this.speed;
+        
         // Física
         this.knockbackX = 0;
         this.knockbackY = 0;
+        
+        // Status Effects
+        this.poisonStacks = 0;
     }
 
-    update(targetX, targetY) {
+    update(targetX, targetY, globalSpeedMult = 1.0) { // <-- Recebe o multiplicador Sandevistan
+        let currentSpeed = this.speed * globalSpeedMult;
+        
+        // --- LÓGICA DE COMPORTAMENTO ÚNICO ---
+        if (this.behavior === 'erratic') {
+            this.erraticTimer++;
+            if (this.erraticTimer % 30 === 0) { // Teleporte a cada 0.5s
+                // Adiciona um efeito visual de glitch/static antes do teleporte seria ideal
+                this.x += (Math.random() - 0.5) * 100;
+                this.y += (Math.random() - 0.5) * 100;
+            }
+            // Movimento base aleatório (tremor)
+            this.x += (Math.random() - 0.5) * currentSpeed * 0.5;
+            this.y += (Math.random() - 0.5) * currentSpeed * 0.5;
+            currentSpeed = 0; 
+        }
+        else if (this.behavior === 'dashing') {
+            const distToPlayer = Math.hypot(targetX - this.x, targetY - this.y);
+            if (distToPlayer < 300) {
+                currentSpeed *= 3; // Dash se estiver perto
+            }
+        }
+        else if (this.behavior === 'ranged') {
+            const distToPlayer = Math.hypot(targetX - this.x, targetY - this.y);
+            if (distToPlayer < 400 && distToPlayer > 150) {
+                currentSpeed *= 0.1; // Diminui para "parar e atirar"
+                // Lógica de tiro do inimigo seria implementada aqui no futuro
+            }
+        }
+        else if (this.behavior === 'heavy') {
+            // Resistência a Knockback (diminui a inércia do Knockback)
+            this.knockbackX *= 0.5;
+            this.knockbackY *= 0.5;
+        }
+
         // Knockback (reduz gradualmente)
         this.x += this.knockbackX;
         this.y += this.knockbackY;
@@ -348,10 +400,10 @@ class Enemy extends Entity {
         const dy = targetY - this.y;
         const dist = Math.hypot(dx, dy);
         
-        // Só anda se o knockback for fraco
-        if(Math.abs(this.knockbackX) < 0.5 && Math.abs(this.knockbackY) < 0.5) {
-            this.x += (dx/dist) * this.speed;
-            this.y += (dy/dist) * this.speed;
+        // Só anda se o knockback for fraco E o comportamento não for puramente Errático/Estático
+        if(this.behavior !== 'erratic' && Math.abs(this.knockbackX) < 0.5 && Math.abs(this.knockbackY) < 0.5) {
+            this.x += (dx/dist) * currentSpeed;
+            this.y += (dy/dist) * currentSpeed;
         }
 
         this.angle += this.isBoss ? 0.02 : 0.1;
