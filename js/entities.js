@@ -17,23 +17,23 @@ class Player extends Entity {
     // Função para resetar e aplicar perks no início da run
     resetStats() {
         // 1. Status Base (O jogador começa "pelado")
+        // Isso garante o RESET TOTAL ao morrer.
         this.stats = {
             speed: 5, fireRate: 20, dmg: 10, count: 1, 
             bulletSpeed: 10, bulletSize: 6, spread: 0,
             backShot: false, sideShot: false, omniShot: false,
             homing: 0, ricochet: 0, pierce: 0, 
-            orbitals: 0, explosive: false, knockback: 0, hasShield: false
+            orbitals: 0, explosive: false, knockback: 0, hasShield: false,
+            
+            // --- NOVOS STATUS JJK ---
+            domainShrine: false, // Malevolent Shrine
+            domainVoid: false,   // Infinite Void
+            hollowPurple: false  // Hollow Purple
         };
 
-        // 2. APLICAR PERKS COMPRADOS DA LOJA (Se existirem)
-        // Isso garante que upgrades comprados no menu funcionem no jogo
-        if (typeof Shop !== 'undefined' && Shop.playerData && DATA) {
-            DATA.perks.forEach(perk => {
-                if (Shop.playerData.ownedPerks.includes(perk.id)) {
-                    perk.apply(this.stats);
-                }
-            });
-        }
+        // NOTA: O loop de "Shop.playerData" foi REMOVIDO aqui.
+        // A loja agora serve apenas para DESBLOQUEAR a carta no pool de sorteio (game.js),
+        // não para dar o poder imediatamente. Isso cria o loop de gameplay Roguelite.
     }
 
     update(keys) {
@@ -63,8 +63,13 @@ class Player extends Entity {
         ctx.globalCompositeOperation = 'lighter';
         ctx.shadowBlur = 15 + powerLevel; 
         
-        // Cor da aura muda com perks especiais
-        const auraColor = this.stats.explosive ? '#ff5500' : (this.stats.hasShield ? '#00ff00' : '#00f3ff');
+        // Cor da aura muda com perks especiais (Prioridade para JJK)
+        let auraColor = '#00f3ff';
+        if(this.stats.domainShrine) auraColor = '#ff0055'; // Vermelho Sukuna
+        else if(this.stats.domainVoid) auraColor = '#a600ff'; // Roxo Gojo
+        else if(this.stats.explosive) auraColor = '#ff5500';
+        else if(this.stats.hasShield) auraColor = '#00ff00';
+
         ctx.shadowColor = auraColor;
         
         // Mini Shield Visual (Círculo extra)
@@ -124,7 +129,8 @@ class Bullet {
 
         // Cor da bala baseada no tipo de poder
         this.color = '#00f3ff';
-        if(stats.explosive) this.color = '#ffaa00';
+        if(stats.hollowPurple) this.color = '#bc13fe'; // Roxo Vazio
+        else if(stats.explosive) this.color = '#ffaa00';
         else if(stats.ricochet > 0) this.color = '#aa00ff';
         else if(stats.pierce > 0) this.color = '#ff0055';
     }
@@ -154,7 +160,31 @@ class Bullet {
         ctx.save();
         ctx.globalCompositeOperation = 'lighter';
         
-        // Rastro
+        // --- VISUAL HOLLOW PURPLE (VAZIO ROXO) ---
+        if(this.stats.hollowPurple) {
+             // Núcleo Branco
+             const grd = ctx.createRadialGradient(this.x, this.y, this.size/4, this.x, this.y, this.size*1.5);
+             grd.addColorStop(0, "white");
+             grd.addColorStop(0.4, "#bc13fe"); // Roxo Neon
+             grd.addColorStop(1, "transparent");
+             
+             ctx.fillStyle = grd;
+             // Desenha bem maior que o normal
+             ctx.beginPath(); ctx.arc(this.x, this.y, this.size * 2, 0, Math.PI*2); ctx.fill();
+             
+             // Partículas de "Apagar Existência" (Static Glitch ao redor da bala)
+             ctx.fillStyle = '#fff';
+             if(Math.random() > 0.5) {
+                const rx = this.x + (Math.random()-0.5) * this.size * 3;
+                const ry = this.y + (Math.random()-0.5) * this.size * 3;
+                ctx.fillRect(rx, ry, 2, 2);
+             }
+             
+             ctx.restore();
+             return; // Retorna para não desenhar a bala comum por cima
+        }
+
+        // --- RASTRO PADRÃO ---
         ctx.lineWidth = this.size / 2;
         ctx.lineCap = 'round';
         ctx.strokeStyle = this.color;
@@ -168,7 +198,7 @@ class Bullet {
         ctx.globalAlpha = 0.6;
         ctx.stroke();
 
-        // Bala
+        // --- BALA PADRÃO ---
         ctx.globalAlpha = 1.0;
         ctx.fillStyle = '#ffffff';
         ctx.shadowBlur = 15; ctx.shadowColor = this.color;

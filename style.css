@@ -1,15 +1,19 @@
 /* =========================================
-   1. GLOBAL & CORE
+   NEON OVERDOSE: HIGH-END CYBERPUNK STYLE
    ========================================= */
+
+/* 1. VARIÁVEIS & CORE */
 :root {
-    --bg: #050505;
-    --cyan: #00f3ff;
-    --pink: #ff0055;
-    --yellow: #ffee00;
-    --grid-color: rgba(0, 243, 255, 0.15);
+    --bg: #030303;           /* Preto Quase Absoluto */
+    --primary: #ffffff;      /* Branco Puro (Texto/Destaque) */
+    --accent: #bc13fe;       /* Roxo Neon (Tema JJK/Mágico) */
+    --pink: #ff0055;         /* Rosa Agressivo (Perigo/Ação) */
+    --yellow: #f0e600;       /* Amarelo (Gold/Moeda) */
     
-    /* Variáveis Dinâmicas de Fase (Mudam via JS) */
-    --phase-color: rgba(0, 243, 255, 0.3);
+    --grid-color: rgba(188, 19, 254, 0.15); /* Grid Roxo Sutil */
+    
+    /* Variáveis Dinâmicas de Fase */
+    --phase-color: rgba(188, 19, 254, 0.3);
     --phase-bg: #020202;
 
     --font-main: 'Rajdhani', sans-serif;
@@ -18,39 +22,38 @@
 
 body {
     margin: 0; overflow: hidden; background: var(--bg);
-    font-family: var(--font-main); color: #fff;
+    font-family: var(--font-main); color: var(--primary);
     user-select: none; cursor: crosshair;
 }
 
 /* =========================================
-   2. GAMEPLAY 3D BACKGROUND (VAPORWAVE)
+   2. GAME STAGE (FUNDO 3D)
    ========================================= */
 #game-stage {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     background: var(--phase-bg);
     overflow: hidden;
-    perspective: 800px; /* Perspectiva 3D */
+    perspective: 800px;
     z-index: 0;
 }
 
-/* O Canvas fica transparente para ver o grid atrás */
 canvas { 
     display: block; position: absolute; top: 0; left: 0; 
-    z-index: 10; 
-    background: transparent !important; 
+    z-index: 10; background: transparent !important; 
 }
 
-/* Grid Infinito da Fase */
+/* Grid do Chão (Infinito) */
 .stage-grid {
     position: absolute; width: 300%; height: 300%;
     bottom: -100%; left: -100%;
     background-image:
-        linear-gradient(var(--phase-color) 2px, transparent 2px),
-        linear-gradient(90deg, var(--phase-color) 2px, transparent 2px);
+        linear-gradient(var(--phase-color) 1px, transparent 1px),
+        linear-gradient(90deg, var(--phase-color) 1px, transparent 1px);
     background-size: 80px 80px;
     transform: rotateX(75deg);
     animation: stageGridMove 8s linear infinite;
-    box-shadow: inset 0 0 200px rgba(0,0,0,0.8);
+    box-shadow: inset 0 0 300px rgba(0,0,0,1); /* Vinheta forte */
+    opacity: 0.6;
 }
 
 @keyframes stageGridMove {
@@ -58,16 +61,17 @@ canvas {
     100% { transform: rotateX(75deg) translateY(80px); }
 }
 
+/* Utilitários */
 .hidden { display: none !important; }
 
 .overlay-screen {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(5,5,5,0.95); z-index: 20;
+    background: rgba(3, 3, 3, 0.95); z-index: 20;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
 }
 
 /* =========================================
-   3. MENU BACKGROUND FX
+   3. MENU PRINCIPAL (NOVO DESIGN CLEAN)
    ========================================= */
 #menu-layer {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -77,82 +81,80 @@ canvas {
     perspective: 1000px;
 }
 
-/* Grid 3D do Menu (Vaporwave style) */
+/* Background Effects do Menu */
 .cyber-grid {
     position: absolute; width: 200%; height: 200%; bottom: -50%; left: -50%;
     background-image: 
         linear-gradient(var(--grid-color) 1px, transparent 1px),
         linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
-    background-size: 40px 40px;
+    background-size: 50px 50px;
     transform: rotateX(45deg);
     animation: gridMove 20s linear infinite;
     pointer-events: none;
 }
-
 @keyframes gridMove {
     0% { transform: rotateX(45deg) translateY(0); }
-    100% { transform: rotateX(45deg) translateY(40px); }
+    100% { transform: rotateX(45deg) translateY(50px); }
 }
 
-/* Scanlines (TV CRT) */
 .scanlines {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-    background: linear-gradient(
-        to bottom,
-        rgba(255,255,255,0),
-        rgba(255,255,255,0) 50%,
-        rgba(0,0,0,0.2) 50%,
-        rgba(0,0,0,0.2)
-    );
-    background-size: 100% 4px;
-    pointer-events: none; z-index: 55;
+    background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.1));
+    background-size: 100% 4px; pointer-events: none; z-index: 55;
 }
 
-/* Vignette */
 .vignette {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-    background: radial-gradient(circle, transparent 40%, #000 100%);
+    background: radial-gradient(circle, transparent 30%, #000 90%);
     pointer-events: none; z-index: 54;
 }
 
+/* Caixa do Menu (Glassmorphism) */
 .menu-content { 
     position: relative; z-index: 60; text-align: center; 
-    padding: 40px; border: 1px solid rgba(0, 243, 255, 0.1);
-    background: rgba(0,0,0,0.6); backdrop-filter: blur(5px);
-    box-shadow: 0 0 50px rgba(0,0,0,0.8);
-    min-width: 400px;
+    padding: 60px 80px; 
+    
+    /* Estilo Vidro/High-End */
+    background: rgba(10, 10, 10, 0.75);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-left: 6px solid var(--accent); /* Detalhe Roxo Lateral */
+    box-shadow: 0 0 100px rgba(188, 19, 254, 0.15);
+    
+    transform: skewX(-2deg); /* Leve inclinação para estilo */
+    min-width: 450px;
 }
 
 /* =========================================
-   4. TYPOGRAPHY & GLITCH
+   4. TIPOGRAFIA & LOGO
    ========================================= */
 .logo {
-    font-family: var(--font-title); font-size: 100px; font-weight: 900;
-    color: #fff; position: relative; margin: 0; line-height: 0.9;
-    text-shadow: 2px 2px var(--pink), -2px -2px var(--cyan);
+    font-family: var(--font-title); font-size: 90px; font-weight: 900;
+    color: var(--primary); margin: 0; line-height: 0.9;
+    text-shadow: 4px 4px 0px var(--accent); /* Sombra Sólida Roxa */
+    letter-spacing: -2px;
 }
 
 .sub-logo {
-    font-family: var(--font-main); font-size: 24px; letter-spacing: 12px;
-    color: var(--yellow); margin-bottom: 40px; font-weight: 700;
+    font-family: var(--font-main); font-size: 20px; letter-spacing: 14px;
+    color: var(--pink); margin-bottom: 50px; font-weight: 700;
     text-transform: uppercase;
 }
 
-/* Efeito Glitch */
+/* Efeito Glitch no Texto */
+.glitch { position: relative; }
 .glitch::before, .glitch::after {
     content: attr(data-text); position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-    background: #050505; 
-    opacity: 0.8;
+    background: #050505; opacity: 0.8;
 }
 .glitch::before {
-    left: 2px; text-shadow: -1px 0 #ff0055; clip-path: inset(44% 0 61% 0);
+    left: 2px; text-shadow: -1px 0 var(--pink); clip-path: inset(44% 0 61% 0);
     animation: glitch-anim 2s infinite linear alternate-reverse;
 }
 .glitch::after {
-    left: -2px; text-shadow: -1px 0 #00f3ff; clip-path: inset(50% 0 30% 0);
+    left: -2px; text-shadow: -1px 0 var(--accent); clip-path: inset(50% 0 30% 0);
     animation: glitch-anim 2.5s infinite linear alternate-reverse;
 }
-
 @keyframes glitch-anim {
     0% { clip-path: inset(80% 0 2% 0); }
     20% { clip-path: inset(10% 0 80% 0); }
@@ -163,199 +165,210 @@ canvas {
 }
 
 /* =========================================
-   5. CYBER BUTTONS
+   5. BOTÕES (CYBER-BTN)
    ========================================= */
+.menu-buttons { display: flex; flex-direction: column; gap: 15px; }
+
 .cyber-btn {
-    display: block; width: 100%; margin: 15px auto; padding: 20px 0;
-    background: transparent; border: 1px solid var(--cyan);
-    color: var(--cyan); font-family: var(--font-title); font-size: 18px;
-    text-transform: uppercase; letter-spacing: 2px; cursor: pointer;
-    position: relative; transition: 0.2s; overflow: hidden;
-    clip-path: polygon(10% 0, 100% 0, 100% 70%, 90% 100%, 0 100%, 0 30%);
+    display: block; width: 100%; padding: 18px 0;
+    background: rgba(0,0,0,0.4); 
+    border: 1px solid #333;
+    border-left: 2px solid var(--primary);
+    
+    color: var(--primary); 
+    font-family: var(--font-title); font-size: 16px;
+    text-transform: uppercase; letter-spacing: 4px; cursor: pointer;
+    position: relative; transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+    overflow: hidden;
 }
 
 .cyber-btn:hover {
-    background: var(--cyan); color: #000;
-    box-shadow: 0 0 30px var(--cyan);
-    text-shadow: none;
+    background: var(--primary);
+    color: var(--bg);
+    border-color: var(--primary);
+    box-shadow: 0 0 30px var(--accent); /* Glow Roxo */
+    transform: translateX(5px) scale(1.02);
+    font-weight: 900;
 }
-
-.btn-glitch {
-    position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.8), transparent);
-    transform: skewX(-25deg);
-}
-.cyber-btn:hover .btn-glitch { animation: btn-shine 0.5s; }
-
-@keyframes btn-shine { 0% {left: -100%;} 100% {left: 100%;} }
 
 .btn-tag {
-    position: absolute; right: 5px; bottom: 5px;
-    font-size: 8px; color: var(--cyan); opacity: 0.5;
+    position: absolute; right: 10px; bottom: 5px;
+    font-size: 9px; color: #666; opacity: 0.7; letter-spacing: 1px;
 }
-.cyber-btn:hover .btn-tag { color: #000; }
+.cyber-btn:hover .btn-tag { color: var(--bg); }
 
-.btn.small { width: auto; padding: 10px 40px; display: inline-block; }
+.btn.small { width: auto; padding: 10px 40px; display: inline-block; margin-top: 20px; }
 
 /* =========================================
-   6. HUD (IN-GAME)
+   6. HUD (INTERFACE IN-GAME)
    ========================================= */
 #ui-layer { position: absolute; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
 
-.hud-top { display: flex; justify-content: space-between; padding: 20px; }
+.hud-top { display: flex; justify-content: space-between; padding: 30px; }
+
 .hud-box {
-    background: rgba(0,0,0,0.7); border: 1px solid #333;
-    padding: 10px 20px; transform: skewX(-15deg);
-    min-width: 120px; text-align: right;
+    background: rgba(0,0,0,0.8); border: 1px solid #333;
+    padding: 10px 25px; transform: skewX(-15deg);
+    min-width: 140px; text-align: right;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.5);
 }
-.hud-box.cyan { border-left: 4px solid var(--cyan); box-shadow: 0 0 15px rgba(0,243,255,0.2); }
-.hud-box.yellow { border-left: 4px solid var(--yellow); box-shadow: 0 0 15px rgba(255,238,0,0.2); }
+.hud-box.cyan { border-left: 4px solid var(--accent); } /* Loop agora é Roxo */
+.hud-box.yellow { border-left: 4px solid var(--yellow); }
 
-.label { display: block; font-size: 12px; color: #888; letter-spacing: 2px; }
-.value { font-family: var(--font-title); font-size: 28px; font-weight: bold; }
+.label { display: block; font-size: 10px; color: #888; letter-spacing: 3px; margin-bottom: 2px; }
+.value { font-family: var(--font-title); font-size: 32px; font-weight: bold; color: #fff; }
 
-.hud-center { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); width: 600px; text-align: center; }
+.hud-center { position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%); width: 600px; text-align: center; }
 
-/* Barras */
-.bar-bg { width: 100%; background: #111; border: 2px solid #333; height: 12px; margin-top: 5px; border-radius: 2px; overflow: hidden; }
+/* Boss & Timer Bars */
+.bar-bg { width: 100%; background: #111; border: 1px solid #444; height: 8px; margin-top: 8px; border-radius: 0; position: relative; }
 .bar-fill { height: 100%; width: 100%; transition: width 0.1s linear; }
 
-.timer-fill { background: linear-gradient(90deg, var(--pink), var(--yellow)); }
-.timer-info { display: flex; justify-content: space-between; font-size: 12px; color: #aaa; font-family: var(--font-title); letter-spacing: 2px; }
+/* Boss Bar = Roxo (JJK style) */
+#boss-container { margin-bottom: 25px; }
+#boss-hp { background: var(--accent); box-shadow: 0 0 15px var(--accent); }
+.boss-name { 
+    font-family: var(--font-title); color: var(--accent); 
+    font-size: 20px; letter-spacing: 6px; 
+    text-shadow: 0 0 10px rgba(188, 19, 254, 0.5); 
+}
 
-#boss-container { margin-bottom: 20px; }
-#boss-hp { background: var(--pink); box-shadow: 0 0 15px var(--pink); }
-.boss-name { font-family: var(--font-title); color: var(--pink); font-size: 18px; text-shadow: 0 0 10px var(--pink); letter-spacing: 5px; margin-bottom: 5px; }
+/* Timer Bar = Gradiente Rosa/Branco */
+.timer-fill { background: linear-gradient(90deg, var(--pink), var(--primary)); }
+.timer-info { display: flex; justify-content: space-between; font-size: 12px; color: #666; font-family: var(--font-title); letter-spacing: 2px; }
 
 /* =========================================
    7. SHOP & CURRENCY
    ========================================= */
 .currency-display {
-    font-family: var(--font-title); border: 1px solid #333;
-    display: inline-block; padding: 10px 30px; margin-bottom: 30px;
-    background: #000; box-shadow: 0 0 15px rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.1);
+    display: inline-block; padding: 12px 35px; margin-bottom: 40px;
+    background: rgba(0,0,0,0.6); 
+    border-bottom: 2px solid var(--yellow);
 }
-.currency-label { color: #888; font-size: 12px; }
-.currency-val { color: var(--yellow); font-size: 24px; }
+.currency-label { color: #888; font-size: 10px; letter-spacing: 2px; }
+.currency-val { color: var(--yellow); font-size: 28px; font-family: var(--font-title); font-weight: bold; margin-left: 10px;}
 
 .version-tag {
     position: absolute; bottom: 20px; right: 20px;
-    font-size: 10px; color: #444; letter-spacing: 2px;
+    font-size: 10px; color: #333; letter-spacing: 2px; font-family: monospace;
 }
 
-.shop-header { text-align: center; margin-bottom: 20px; position: relative; z-index: 10; width: 100%; background: rgba(0,0,0,0.8); padding: 20px 0; }
-.shop-header h2 { font-family: var(--font-title); color: var(--cyan); font-size: 40px; margin: 0; }
+.shop-header { 
+    text-align: center; margin-bottom: 20px; position: relative; z-index: 10; width: 100%; 
+    background: rgba(0,0,0,0.9); padding: 30px 0; border-bottom: 1px solid #222;
+}
+.shop-header h2 { font-family: var(--font-title); color: var(--primary); font-size: 40px; margin: 0; text-shadow: 0 0 20px rgba(255,255,255,0.2); }
 
 .shop-grid {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px;
     width: 90%; max-width: 1200px; max-height: 70vh; overflow-y: auto; padding: 20px;
-    scrollbar-width: thin; scrollbar-color: var(--cyan) #111;
+    scrollbar-width: thin; scrollbar-color: var(--accent) #111;
 }
 
+/* Shop Card */
 .shop-card {
-    background: #111; border: 1px solid #444; padding: 20px; text-align: center;
-    cursor: pointer; transition: 0.2s; position: relative; opacity: 0.6;
-    display: flex; flex-direction: column; justify-content: space-between; height: 150px;
+    background: #0a0a0a; border: 1px solid #333; padding: 25px; text-align: center;
+    cursor: pointer; transition: 0.3s; position: relative; opacity: 0.7;
+    display: flex; flex-direction: column; justify-content: space-between; height: 160px;
 }
-.shop-card:hover { transform: scale(1.05); border-color: var(--cyan); opacity: 1; z-index: 5; background: #1a1a1a; }
-.shop-card.owned { border-color: var(--yellow); opacity: 1; box-shadow: inset 0 0 10px rgba(255,238,0,0.1); }
-.shop-card h3 { font-size: 14px; margin: 0; color: var(--cyan); font-family: var(--font-title); }
-.shop-card p { font-size: 11px; color: #888; margin: 10px 0; }
-.shop-card .cost { color: var(--yellow); font-weight: bold; font-family: var(--font-title); }
+.shop-card:hover { 
+    transform: translateY(-5px); border-color: var(--primary); opacity: 1; 
+    z-index: 5; background: #111; box-shadow: 0 5px 20px rgba(0,0,0,0.5);
+}
+
+.shop-card.owned { 
+    border-color: var(--accent); opacity: 1; 
+    box-shadow: inset 0 0 15px rgba(188, 19, 254, 0.1); 
+    background: linear-gradient(180deg, rgba(188, 19, 254, 0.05) 0%, transparent 100%);
+}
+.shop-card h3 { font-size: 14px; margin: 0; color: #fff; font-family: var(--font-title); letter-spacing: 1px; }
+.shop-card p { font-size: 11px; color: #777; margin: 10px 0; line-height: 1.4; }
+.shop-card .cost { font-weight: bold; font-family: var(--font-title); font-size: 14px; }
+
+.shop-info-text { text-align: center; color: #666; margin-bottom: 10px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
 
 /* =========================================
-   8. PERK CARDS (INGAME SELECTION)
+   8. PERK CARDS (SELEÇÃO IN-GAME)
    ========================================= */
 #perk-layer {
-    background: rgba(0, 0, 0, 0.92);
-    backdrop-filter: blur(8px);
+    background: rgba(3, 3, 3, 0.96);
+    backdrop-filter: blur(10px);
     z-index: 100;
 }
 
 #perk-options {
-    display: flex; gap: 30px; justify-content: center; align-items: center; flex-wrap: wrap; padding: 20px;
+    display: flex; gap: 40px; justify-content: center; align-items: center; flex-wrap: wrap; padding: 20px;
 }
 
 .perk-card {
-    width: 240px; height: 360px;
-    background: linear-gradient(160deg, #0a0a0a 0%, #151515 100%);
-    border: 2px solid #333;
+    width: 260px; height: 380px;
+    background: #080808;
+    border: 1px solid #333;
+    /* Recorte futurista */
     clip-path: polygon(20px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%, 0 20px);
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    padding: 25px; cursor: pointer; position: relative;
-    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    padding: 30px; cursor: pointer; position: relative;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-.perk-card:hover { transform: translateY(-15px) scale(1.05); background: #1a1a1a; z-index: 10; }
+.perk-card:hover { transform: translateY(-20px) scale(1.05); background: #111; z-index: 10; }
 
-.perk-card .icon { font-size: 60px; margin-bottom: 30px; transition: 0.3s; }
-.perk-card h3 { font-family: var(--font-title); font-size: 18px; text-transform: uppercase; margin-bottom: 15px; text-align: center; line-height: 1.2; }
-.perk-card p { font-family: var(--font-main); font-size: 14px; color: #888; text-align: center; line-height: 1.5; }
-.perk-card:hover p { color: #fff; }
+.perk-card .icon { font-size: 50px; margin-bottom: 30px; transition: 0.3s; opacity: 0.8; }
+.perk-card:hover .icon { opacity: 1; transform: scale(1.2); }
 
-/* Rarities */
-.perk-card.common { border-color: #555; }
-.perk-card.common:hover { border-color: #fff; box-shadow: 0 0 20px rgba(255,255,255,0.2); }
-.perk-card.common h3 { color: #ccc; }
-.perk-card.common .icon { color: #555; text-shadow: 0 0 10px rgba(255,255,255,0.2); }
+.perk-card h3 { 
+    font-family: var(--font-title); font-size: 18px; text-transform: uppercase; 
+    margin-bottom: 15px; text-align: center; line-height: 1.2; letter-spacing: 1px;
+}
+.perk-card p { font-family: var(--font-main); font-size: 14px; color: #777; text-align: center; line-height: 1.5; }
+.perk-card:hover p { color: #aaa; }
 
-.perk-card.rare { border-color: var(--cyan); box-shadow: inset 0 0 15px rgba(0, 243, 255, 0.1); }
-.perk-card.rare:hover { box-shadow: 0 0 40px var(--cyan), inset 0 0 20px var(--cyan); }
-.perk-card.rare h3 { color: var(--cyan); }
-.perk-card.rare .icon { color: var(--cyan); text-shadow: 0 0 15px var(--cyan); }
+/* Rarities Colors */
+.perk-card.common { border-color: #444; }
+.perk-card.common:hover { border-color: #fff; box-shadow: 0 0 30px rgba(255,255,255,0.1); }
+.perk-card.common h3 { color: #fff; }
 
-.perk-card.legend { border-color: var(--yellow); box-shadow: inset 0 0 15px rgba(255, 238, 0, 0.1); animation: pulseLegend 3s infinite alternate; }
-.perk-card.legend:hover { box-shadow: 0 0 50px var(--yellow), inset 0 0 30px var(--yellow); }
-.perk-card.legend h3 { color: var(--yellow); }
-.perk-card.legend .icon { color: var(--yellow); text-shadow: 0 0 20px var(--yellow); }
+.perk-card.rare { border-color: var(--pink); }
+.perk-card.rare:hover { box-shadow: 0 0 50px rgba(255, 0, 85, 0.3); border-color: var(--pink); }
+.perk-card.rare h3 { color: var(--pink); }
+.perk-card.rare .icon { color: var(--pink); text-shadow: 0 0 20px var(--pink); }
 
-@keyframes pulseLegend { 0% { border-color: var(--yellow); } 100% { border-color: #ffaa00; } }
+.perk-card.legend { 
+    border-color: var(--accent); 
+    background: radial-gradient(circle at top, rgba(188,19,254,0.1), transparent 70%);
+    animation: pulseBorder 3s infinite alternate; 
+}
+.perk-card.legend:hover { box-shadow: 0 0 60px rgba(188, 19, 254, 0.4); }
+.perk-card.legend h3 { color: var(--accent); text-shadow: 0 0 10px var(--accent); }
+.perk-card.legend .icon { color: var(--accent); text-shadow: 0 0 30px var(--accent); }
+
+@keyframes pulseBorder { 
+    0% { border-color: var(--accent); box-shadow: 0 0 10px rgba(188,19,254,0.1); } 
+    100% { border-color: #e08aff; box-shadow: 0 0 30px rgba(188,19,254,0.3); } 
+}
 
 /* =========================================
-   9. GAME OVER
+   9. GAME OVER & EXTRAS
    ========================================= */
+#game-over-layer { text-align: center; }
+
 .red-glow {
-    color: var(--pink); text-shadow: 0 0 20px var(--pink);
-    font-family: var(--font-title); font-size: 60px;
-/* Adições para Dev Console e Novos Elementos */
-
-.dev-console {
-    margin-top: 40px;
-    opacity: 0.5;
-    transition: 0.3s;
+    color: var(--pink); text-shadow: 0 0 30px var(--pink);
+    font-family: var(--font-title); font-size: 80px; margin-bottom: 20px;
+    letter-spacing: -2px;
 }
+
+.end-stats p { margin: 10px 0; font-size: 20px; color: #888; letter-spacing: 2px; }
+.end-stats span { color: #fff; }
+
+/* Dev Console */
+.dev-console { margin-top: 50px; opacity: 0.3; transition: 0.3s; }
 .dev-console:hover { opacity: 1; }
-
 #dev-code {
-    background: #000;
-    border: 1px solid #333;
-    color: var(--cyan);
-    font-family: var(--font-main);
-    padding: 10px;
-    text-align: center;
-    text-transform: uppercase;
-    width: 200px;
-    letter-spacing: 2px;
+    background: transparent; border: none; border-bottom: 1px solid #333;
+    color: var(--accent); font-family: var(--font-main);
+    padding: 10px; text-align: center; text-transform: uppercase;
+    width: 150px; letter-spacing: 2px; outline: none;
 }
-#dev-msg {
-    height: 20px;
-    font-size: 10px;
-    color: var(--pink);
-    margin-top: 5px;
-    font-family: var(--font-title);
-}
-
-.shop-info-text {
-    text-align: center;
-    color: #888;
-    margin-bottom: 10px;
-    font-size: 12px;
-}
-
-/* Escudo do Player */
-.shield-visual {
-    box-shadow: 0 0 20px var(--cyan), inset 0 0 20px var(--cyan);
-    border: 2px solid #fff;
-    border-radius: 50%;
-}
+#dev-msg { height: 20px; font-size: 10px; color: var(--pink); margin-top: 5px; font-family: var(--font-title); }

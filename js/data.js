@@ -1,92 +1,9 @@
-// =========================================================================
-// 1. SISTEMA DE PERKS COM EVOLUÇÃO (SKILL TREE) & POWER SCALE
-// =========================================================================
-
-const UNIQUE_PERKS = [
-    // --- ÁRVORE DE TIROS MÚLTIPLOS ---
-    { id: 100, name: "DOUBLE TAP", desc: "+1 Projétil", cost: 500, req: null, rarity: "common", apply: s => s.count += 1 },
-    { id: 101, name: "TRIPLE THREAT", desc: "+2 Projéteis, +Spread", cost: 1500, req: 100, rarity: "rare", apply: s => { s.count += 2; s.spread += 0.1; } },
-    { id: 102, name: "SHOTGUN GOD", desc: "+6 Projéteis, Caos", cost: 4000, req: 101, rarity: "legend", apply: s => { s.count += 6; s.spread += 0.5; } },
-    
-    // --- ÁRVORE DE DIREÇÃO ---
-    { id: 110, name: "REAR GUARD", desc: "Tiro Traseiro", cost: 600, req: null, rarity: "common", apply: s => s.backShot = true },
-    { id: 111, name: "SIDE WINDER", desc: "Tiros Laterais", cost: 1200, req: 110, rarity: "rare", apply: s => s.sideShot = true },
-    { id: 112, name: "STAR BURST", desc: "Omni-Direcional (8 Tiros)", cost: 6000, req: 111, rarity: "legend", apply: s => { s.omniShot = true; s.count += 2; } },
-
-    // --- ÁRVORE DE UTILIDADE ---
-    { id: 200, name: "HOMING V1", desc: "Teleguiado Leve", cost: 1000, req: null, rarity: "rare", apply: s => s.homing += 0.05 },
-    { id: 201, name: "HOMING V2", desc: "Teleguiado Perfeito", cost: 4000, req: 200, rarity: "legend", apply: s => s.homing += 0.2 },
-    
-    { id: 210, name: "RICOCHET I", desc: "Bala quica 2 vezes", cost: 1200, req: null, rarity: "rare", apply: s => s.ricochet += 2 },
-    { id: 211, name: "RICOCHET MAX", desc: "Bala quica 10 vezes", cost: 3000, req: 210, rarity: "legend", apply: s => s.ricochet += 10 },
-    
-    { id: 220, name: "PIERCING I", desc: "Atravessa 2 Inimigos", cost: 1500, req: null, rarity: "rare", apply: s => s.pierce = (s.pierce || 0) + 2 },
-    { id: 221, name: "GHOST", desc: "Atravessa Paredes e Inimigos", cost: 5000, req: 220, rarity: "legend", apply: s => { s.ghost = true; s.pierce += 100; } },
-
-    // --- ÁRVORE DE DEFESA (ORBITAIS) ---
-    { id: 300, name: "ORBITAL I", desc: "+1 Esfera Defensiva", cost: 1000, req: null, rarity: "rare", apply: s => s.orbitals += 1 },
-    { id: 301, name: "ATOM SHIELD", desc: "4 Esferas Rápidas", cost: 6000, req: 300, rarity: "legend", apply: s => s.orbitals += 4 },
-    { id: 303, name: "ENERGY SHIELD", desc: "Escudo que bloqueia 1 hit/loop", cost: 3000, req: null, rarity: "rare", apply: s => s.hasShield = true },
-
-    // --- EFEITOS DE PODER (JUICE) ---
-    { id: 500, name: "NUKE TOUCH", desc: "Explosão Gigante", cost: 5000, req: null, rarity: "legend", apply: s => { s.explosive = true; s.dmg *= 1.5; } },
-    { id: 501, name: "ZERO GRAVITY", desc: "Balas flutuam (lentas e mortais)", cost: 3000, req: null, rarity: "rare", apply: s => { s.bulletSpeed *= 0.6; s.lifeTimeMult = 3; s.dmg *= 1.5; } }
-];
-
-// Gerador Procedural de Status (MK-1 a MK-20)
-const STAT_PERKS = [];
-// Multiplicadores agressivos para dar sensação de poder
-const STAT_TYPES = [
-    { name: "FORCE", stat: "dmg", val: 1.5, desc: "Dano Massivo" }, // +50% por nível (exponencial)
-    { name: "TRIGGER", stat: "fireRate", val: 0.85, desc: "Fire Rate" }, // -15% delay
-    { name: "VELOCITY", stat: "bulletSpeed", val: 1.3, desc: "Vel. Bala" },
-    { name: "MASS", stat: "bulletSize", val: 1.4, desc: "Tamanho Bala" },
-    { name: "ENGINE", stat: "speed", val: 1, add: 1.5, desc: "Velocidade Nave" }
-];
-
-let globalId = 1000;
-
-STAT_TYPES.forEach(type => {
-    let previousId = null; // Para ligar a corrente de requisitos
-
-    for(let i=1; i<=20; i++) {
-        let rarity = "common";
-        if(i > 5) rarity = "rare";
-        if(i > 15) rarity = "legend";
-        
-        // Custo escala exponencialmente
-        let cost = Math.floor(100 * Math.pow(1.4, i)); 
-        
-        // Descrição do acumulado para o jogador saber o poder real
-        let descVal = type.add ? `+${(type.add * i).toFixed(1)}` : `x${Math.pow(type.val, i).toFixed(1)}`;
-
-        let perk = {
-            id: globalId,
-            name: `${type.name} MK-${i}`,
-            desc: `${descVal} ${type.desc}`,
-            cost: cost,
-            req: previousId, // EXIGE O ANTERIOR
-            rarity: rarity,
-            apply: s => {
-                // Aplica o valor base N vezes ou multiplica
-                // No sistema Roguelite, pegar MK-5 significa ter o poder do MK-5
-                if(type.add) s[type.stat] += type.add * 2; // Dobro do valor base pra ser forte
-                else s[type.stat] *= type.val;
-            }
-        };
-
-        STAT_PERKS.push(perk);
-        previousId = globalId; // O atual vira o requisito do próximo
-        globalId++;
-    }
-});
-
-// =========================================================================
-// 2. OBJETO DATA PRINCIPAL
-// =========================================================================
+// js/data.js
 
 const DATA = {
-    // 100 FASES ÚNICAS - ORGANIZADAS POR SETORES VISUAIS
+    // =========================================================================
+    // 1. DADOS DE FASES (VISUAL & ATMOSFERA)
+    // =========================================================================
     phases: [
         // --- SETOR 0: INITIAL BOOT (Os Clássicos) ---
         { name: "SYSTEM BOOT", bg: "#050505", grid: "#1a1a1a", accent: "#00f3ff" }, 
@@ -209,16 +126,34 @@ const DATA = {
         { name: "REBIRTH", bg: "#000000", grid: "#111111", accent: "#00f3ff" }
     ],
 
-    // Definição dos Bosses
+    // =========================================================================
+    // 2. BOSSES (INCLUINDO JJK & NOVOS)
+    // =========================================================================
     bosses: [
         { name: "THE MONOLITH", shape: "square", size: 80, hpMult: 1, speed: 1, color: "#ff0055" },
-        { name: "HYDRA CORE", shape: "triangle", size: 60, hpMult: 0.8, speed: 3, color: "#ffee00" },
-        { name: "VOID GAZER", shape: "circle", size: 70, hpMult: 1.2, speed: 1.5, color: "#aa00ff" },
-        { name: "HEXA DOOM", shape: "hexagon", size: 90, hpMult: 2.0, speed: 0.5, color: "#00ff00" },
-        { name: "CYBER SPIDER", shape: "pentagon", size: 75, hpMult: 1.1, speed: 2, color: "#00f3ff" },
+        // Referência JJK: Mahoraga (Divine General) - Adaptável e Rápido
+        { name: "MAHORAGA", shape: "star", size: 90, hpMult: 2.5, speed: 4, color: "#fff", desc: "Divine General" }, 
+        // Referência JJK: Ryomen (Rei das Maldições) - Brutal
+        { name: "RYOMEN", shape: "circle", size: 85, hpMult: 2.2, speed: 3, color: "#ff0000", desc: "King of Curses" }, 
+        { name: "VOID EMPEROR", shape: "hexagon", size: 120, hpMult: 3.0, speed: 0.5, color: "#8000ff" },
+        { name: "SERAPHIM", shape: "triangle", size: 70, hpMult: 1.5, speed: 5, color: "#00f3ff" },
         { name: "OMEGA STAR", shape: "star", size: 100, hpMult: 3.0, speed: 0.3, color: "#ffffff" }
     ],
 
-    // Combina os Perks Únicos com os Perks Gerados Proceduralmente
-    perks: [...UNIQUE_PERKS, ...STAT_PERKS]
+    // =========================================================================
+    // 3. INIMIGOS COMUNS (POOL VARIADO)
+    // =========================================================================
+    enemies: [
+        { name: "Drone", size: 20, speed: 2, color: "#ff0055", hpMult: 0.1 },
+        { name: "Kamikaze", size: 15, speed: 6, color: "#ffaa00", hpMult: 0.05 }, // Rápido, morre fácil
+        { name: "Tank", size: 40, speed: 1, color: "#00ff55", hpMult: 0.3 },      // Lento, muita vida
+        { name: "Cursed Spirit", size: 25, speed: 3, color: "#4a004a", hpMult: 0.15 } // JJK Theme
+    ],
+
+    // =========================================================================
+    // 4. PERKS (REFERÊNCIA EXTERNA)
+    // =========================================================================
+    // Garante que ALL_PERKS (do arquivo perks.js) seja carregado.
+    // Se perks.js não for carregado, evita crash usando array vazio.
+    perks: typeof ALL_PERKS !== 'undefined' ? ALL_PERKS : []
 };
