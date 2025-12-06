@@ -10,7 +10,6 @@
 <body>
 
     <div id="game-wrapper">
-        
         <div id="game-stage">
             <div class="stage-grid"></div>
             <canvas id="gameCanvas"></canvas>
@@ -33,7 +32,6 @@
                     <div class="boss-name" id="boss-name">BOSS NAME</div>
                     <div class="bar-bg"><div class="bar-fill" id="boss-hp"></div></div>
                 </div>
-                
                 <div class="timer-container">
                     <div class="timer-info">
                         <span id="timer-status">STABLE</span>
@@ -52,7 +50,7 @@
             <div class="menu-content">
                 <h1 class="logo glitch" data-text="NEON">NEON</h1>
                 <h2 class="sub-logo glitch-small" data-text="OVERDOSE">OVERDOSE</h2>
-                <div class="version-tag">IU EDITION</div>
+                <div class="version-tag">DEV BUILD 4.0</div>
                 
                 <div class="currency-display">
                     <span class="currency-label">CREDITS_</span>
@@ -62,7 +60,7 @@
                 <div class="menu-buttons">
                     <button class="btn cyber-btn" onclick="Game.start()">
                         <span class="btn-glitch"></span>
-                        <span class="btn-tag">R-01</span>
+                        <span class="btn-tag">RUN</span>
                         INICIAR RUN
                     </button>
                     <button class="btn cyber-btn" onclick="Shop.open()">
@@ -76,8 +74,11 @@
                         AUDIO: <span id="audio-state">OFF</span>
                     </button>
                 </div>
-                
-                <div class="version-tag" style="bottom: 10px; font-size: 8px;">SYS.VER.3.0 // OMNIPOTENCE</div>
+
+                <div class="dev-console">
+                    <input type="text" id="dev-code" placeholder="INSERT CODE..." onkeydown="if(event.key==='Enter') Systems.checkDevCode()">
+                    <div id="dev-msg"></div>
+                </div>
             </div>
         </div>
 
@@ -89,13 +90,16 @@
                 </div>
                 <button class="btn small cyber-btn" style="width:auto; padding: 10px 30px;" onclick="Shop.close()">VOLTAR</button>
             </div>
-            <div class="shop-grid" id="shop-grid">
-                </div>
+            <div class="shop-info-text">Compre cartas aqui para desbloqueá-las durante a partida.</div>
+            <div class="shop-grid" id="shop-grid"></div>
         </div>
 
         <div id="perk-layer" class="hidden overlay-screen">
-            <h2 class="glitch" data-text="EVOLUÇÃO" style="font-size: 40px; margin-bottom: 40px; font-family: 'Orbitron'; color: white;">ESCOLHA SUA EVOLUÇÃO</h2>
+            <h2 class="glitch" data-text="EVOLUÇÃO" style="font-size: 40px; margin-bottom: 20px; font-family: 'Orbitron'; color: white;">ESCOLHA SUA EVOLUÇÃO</h2>
             <div class="cards-row" id="perk-options"></div>
+            <button class="btn cyber-btn small" style="margin-top: 30px; width: 200px;" onclick="Game.rerollPerks()">
+                REROLL (Custa 500 Score)
+            </button>
         </div>
         
         <div id="game-over-layer" class="hidden overlay-screen">

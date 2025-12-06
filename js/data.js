@@ -1,81 +1,82 @@
 // =========================================================================
-// 1. SISTEMA DE PERKS EVOLUTIVOS (SKILL TREE & POWER SCALING)
+// 1. SISTEMA DE PERKS COM EVOLUÇÃO (SKILL TREE) & POWER SCALE
 // =========================================================================
 
 const UNIQUE_PERKS = [
-    // --- ÁRVORE DE TIROS MÚLTIPLOS (MULTI-SHOT) ---
+    // --- ÁRVORE DE TIROS MÚLTIPLOS ---
     { id: 100, name: "DOUBLE TAP", desc: "+1 Projétil", cost: 500, req: null, rarity: "common", apply: s => s.count += 1 },
     { id: 101, name: "TRIPLE THREAT", desc: "+2 Projéteis, +Spread", cost: 1500, req: 100, rarity: "rare", apply: s => { s.count += 2; s.spread += 0.1; } },
-    { id: 102, name: "SHOTGUN MASTER", desc: "+4 Projéteis, Caos Total", cost: 4000, req: 101, rarity: "legend", apply: s => { s.count += 4; s.spread += 0.3; } },
+    { id: 102, name: "SHOTGUN GOD", desc: "+6 Projéteis, Caos", cost: 4000, req: 101, rarity: "legend", apply: s => { s.count += 6; s.spread += 0.5; } },
     
-    // --- ÁRVORE DIRECIONAL (CONTROL) ---
+    // --- ÁRVORE DE DIREÇÃO ---
     { id: 110, name: "REAR GUARD", desc: "Tiro Traseiro", cost: 600, req: null, rarity: "common", apply: s => s.backShot = true },
     { id: 111, name: "SIDE WINDER", desc: "Tiros Laterais", cost: 1200, req: 110, rarity: "rare", apply: s => s.sideShot = true },
-    { id: 112, name: "STAR BURST", desc: "Tiro em 360 Graus (Omni)", cost: 6000, req: 111, rarity: "legend", apply: s => s.omniShot = true },
+    { id: 112, name: "STAR BURST", desc: "Omni-Direcional (8 Tiros)", cost: 6000, req: 111, rarity: "legend", apply: s => { s.omniShot = true; s.count += 2; } },
 
-    // --- ÁRVORE DE FÍSICA (PHYSICS) ---
-    { id: 200, name: "RICOCHET I", desc: "Bala quica 1 vez", cost: 1200, req: null, rarity: "rare", apply: s => s.ricochet += 1 },
-    { id: 201, name: "RICOCHET II", desc: "Bala quica +2 vezes", cost: 2500, req: 200, rarity: "legend", apply: s => s.ricochet += 2 },
+    // --- ÁRVORE DE UTILIDADE ---
+    { id: 200, name: "HOMING V1", desc: "Teleguiado Leve", cost: 1000, req: null, rarity: "rare", apply: s => s.homing += 0.05 },
+    { id: 201, name: "HOMING V2", desc: "Teleguiado Perfeito", cost: 4000, req: 200, rarity: "legend", apply: s => s.homing += 0.2 },
     
-    { id: 210, name: "PIERCING I", desc: "Atravessa 1 Inimigo", cost: 1500, req: null, rarity: "rare", apply: s => s.pierce = (s.pierce || 0) + 1 },
-    { id: 211, name: "PIERCING II", desc: "Atravessa +2 Inimigos", cost: 3000, req: 210, rarity: "legend", apply: s => s.pierce = (s.pierce || 0) + 2 },
-    { id: 212, name: "GHOST BULLETS", desc: "Atravessa Paredes", cost: 5000, req: 211, rarity: "legend", apply: s => s.ghost = true },
+    { id: 210, name: "RICOCHET I", desc: "Bala quica 2 vezes", cost: 1200, req: null, rarity: "rare", apply: s => s.ricochet += 2 },
+    { id: 211, name: "RICOCHET MAX", desc: "Bala quica 10 vezes", cost: 3000, req: 210, rarity: "legend", apply: s => s.ricochet += 10 },
+    
+    { id: 220, name: "PIERCING I", desc: "Atravessa 2 Inimigos", cost: 1500, req: null, rarity: "rare", apply: s => s.pierce = (s.pierce || 0) + 2 },
+    { id: 221, name: "GHOST", desc: "Atravessa Paredes e Inimigos", cost: 5000, req: 220, rarity: "legend", apply: s => { s.ghost = true; s.pierce += 100; } },
 
-    // --- ÁRVORE DE UTILIDADE (TECH) ---
-    { id: 220, name: "HOMING V1", desc: "Teleguiado Leve", cost: 1000, req: null, rarity: "rare", apply: s => s.homing += 0.04 },
-    { id: 221, name: "HOMING V2", desc: "Teleguiado Perfeito", cost: 3000, req: 220, rarity: "legend", apply: s => s.homing += 0.1 },
+    // --- ÁRVORE DE DEFESA (ORBITAIS) ---
+    { id: 300, name: "ORBITAL I", desc: "+1 Esfera Defensiva", cost: 1000, req: null, rarity: "rare", apply: s => s.orbitals += 1 },
+    { id: 301, name: "ATOM SHIELD", desc: "4 Esferas Rápidas", cost: 6000, req: 300, rarity: "legend", apply: s => s.orbitals += 4 },
+    { id: 303, name: "ENERGY SHIELD", desc: "Escudo que bloqueia 1 hit/loop", cost: 3000, req: null, rarity: "rare", apply: s => s.hasShield = true },
 
-    // --- ÁRVORE DE DEFESA (ORBITALS) ---
-    { id: 300, name: "ORBITAL I", desc: "+1 Esfera Protetora", cost: 1000, req: null, rarity: "rare", apply: s => s.orbitals += 1 },
-    { id: 301, name: "ORBITAL II", desc: "+2 Esferas Protetoras", cost: 2500, req: 300, rarity: "legend", apply: s => s.orbitals += 2 },
-    { id: 302, name: "ATOM SHIELD", desc: "Campo de Força (4 Orbs)", cost: 6000, req: 301, rarity: "legend", apply: s => s.orbitals += 4 },
-
-    // --- PODERES ESPECIAIS (JUICE) ---
-    { id: 500, name: "EXPLOSIVE TOUCH", desc: "Inimigos Explodem em Área", cost: 4500, req: null, rarity: "legend", apply: s => s.explosive = true },
-    { id: 501, name: "KNOCKBACK KING", desc: "Empurrão Massivo", cost: 2000, req: null, rarity: "rare", apply: s => s.knockback = (s.knockback || 0) + 5 },
-    { id: 502, name: "ZERO GRAVITY", desc: "Balas Lentas e Mortais", cost: 3000, req: null, rarity: "rare", apply: s => { s.bulletSpeed *= 0.6; s.lifeTimeMult = 3; s.dmg *= 1.5; } }
+    // --- EFEITOS DE PODER (JUICE) ---
+    { id: 500, name: "NUKE TOUCH", desc: "Explosão Gigante", cost: 5000, req: null, rarity: "legend", apply: s => { s.explosive = true; s.dmg *= 1.5; } },
+    { id: 501, name: "ZERO GRAVITY", desc: "Balas flutuam (lentas e mortais)", cost: 3000, req: null, rarity: "rare", apply: s => { s.bulletSpeed *= 0.6; s.lifeTimeMult = 3; s.dmg *= 1.5; } }
 ];
 
-// --- GERADOR PROCEDURAL DE STATUS (MK-1 a MK-20) ---
+// Gerador Procedural de Status (MK-1 a MK-20)
 const STAT_PERKS = [];
+// Multiplicadores agressivos para dar sensação de poder
 const STAT_TYPES = [
-    { name: "FORCE", stat: "dmg", val: 1.15, desc: "Dano" }, // +15% Composto (Fica gigante rápido)
-    { name: "TRIGGER", stat: "fireRate", val: 0.92, desc: "Fire Rate" }, // -8% Delay
-    { name: "VELOCITY", stat: "bulletSpeed", val: 1.10, desc: "Vel. Bala" },
-    { name: "MASS", stat: "bulletSize", val: 1.20, desc: "Tamanho Bala" },
-    { name: "ENGINE", stat: "speed", val: 1, add: 0.8, desc: "Velocidade Nave" }
+    { name: "FORCE", stat: "dmg", val: 1.5, desc: "Dano Massivo" }, // +50% por nível (exponencial)
+    { name: "TRIGGER", stat: "fireRate", val: 0.85, desc: "Fire Rate" }, // -15% delay
+    { name: "VELOCITY", stat: "bulletSpeed", val: 1.3, desc: "Vel. Bala" },
+    { name: "MASS", stat: "bulletSize", val: 1.4, desc: "Tamanho Bala" },
+    { name: "ENGINE", stat: "speed", val: 1, add: 1.5, desc: "Velocidade Nave" }
 ];
 
 let globalId = 1000;
 
 STAT_TYPES.forEach(type => {
-    let previousId = null; // Guarda o ID anterior para criar o requisito
+    let previousId = null; // Para ligar a corrente de requisitos
 
     for(let i=1; i<=20; i++) {
         let rarity = "common";
         if(i > 5) rarity = "rare";
         if(i > 15) rarity = "legend";
         
-        // Custo aumenta exponencialmente
-        let cost = Math.floor(100 * Math.pow(1.35, i)); 
+        // Custo escala exponencialmente
+        let cost = Math.floor(100 * Math.pow(1.4, i)); 
         
-        let descVal = type.add ? `+${type.add.toFixed(1)}` : `+${Math.round((type.val - 1)*100)}%`;
+        // Descrição do acumulado para o jogador saber o poder real
+        let descVal = type.add ? `+${(type.add * i).toFixed(1)}` : `x${Math.pow(type.val, i).toFixed(1)}`;
 
         let perk = {
             id: globalId,
             name: `${type.name} MK-${i}`,
             desc: `${descVal} ${type.desc}`,
             cost: cost,
-            req: previousId, // Exige o nível anterior
+            req: previousId, // EXIGE O ANTERIOR
             rarity: rarity,
             apply: s => {
-                if(type.add) s[type.stat] += type.add;
+                // Aplica o valor base N vezes ou multiplica
+                // No sistema Roguelite, pegar MK-5 significa ter o poder do MK-5
+                if(type.add) s[type.stat] += type.add * 2; // Dobro do valor base pra ser forte
                 else s[type.stat] *= type.val;
             }
         };
 
         STAT_PERKS.push(perk);
-        previousId = globalId; // Atualiza o "pai" para o próximo loop
+        previousId = globalId; // O atual vira o requisito do próximo
         globalId++;
     }
 });
@@ -208,6 +209,7 @@ const DATA = {
         { name: "REBIRTH", bg: "#000000", grid: "#111111", accent: "#00f3ff" }
     ],
 
+    // Definição dos Bosses
     bosses: [
         { name: "THE MONOLITH", shape: "square", size: 80, hpMult: 1, speed: 1, color: "#ff0055" },
         { name: "HYDRA CORE", shape: "triangle", size: 60, hpMult: 0.8, speed: 3, color: "#ffee00" },

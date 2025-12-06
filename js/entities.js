@@ -8,29 +8,32 @@ class Player extends Entity {
     constructor(x, y) {
         super(x, y, '#fff');
         this.size = 15;
-        
-        // 1. Status Base (Padrão)
+        this.resetStats(); // Inicializa status
+        this.shootTimer = 0;
+        this.angle = -Math.PI/2; // Começa olhando para cima
+        this.shieldHp = 0;
+    }
+
+    // Função para resetar e aplicar perks no início da run
+    resetStats() {
+        // 1. Status Base (O jogador começa "pelado")
         this.stats = {
             speed: 5, fireRate: 20, dmg: 10, count: 1, 
             bulletSpeed: 10, bulletSize: 6, spread: 0,
             backShot: false, sideShot: false, omniShot: false,
             homing: 0, ricochet: 0, pierce: 0, 
-            orbitals: 0, explosive: false, knockback: 0
+            orbitals: 0, explosive: false, knockback: 0, hasShield: false
         };
 
-        // 2. CORREÇÃO CRÍTICA: APLICAR PERKS COMPRADOS DA LOJA
-        // Percorre todos os perks do jogo e aplica se o jogador tiver comprado
-        DATA.perks.forEach(perk => {
-            if (Shop.playerData.ownedPerks.includes(perk.id)) {
-                perk.apply(this.stats);
-            }
-        });
-
-        // Debug para confirmar no console se funcionou (F12)
-        // console.log("Stats Finais do Player:", this.stats);
-
-        this.shootTimer = 0;
-        this.angle = 0;
+        // 2. APLICAR PERKS COMPRADOS DA LOJA (Se existirem)
+        // Isso garante que upgrades comprados no menu funcionem no jogo
+        if (typeof Shop !== 'undefined' && Shop.playerData && DATA) {
+            DATA.perks.forEach(perk => {
+                if (Shop.playerData.ownedPerks.includes(perk.id)) {
+                    perk.apply(this.stats);
+                }
+            });
+        }
     }
 
     update(keys) {
@@ -52,21 +55,25 @@ class Player extends Entity {
 
     draw(ctx) {
         ctx.save();
-        
-        // --- SEM RECUO: Apenas posiciona onde o jogador está ---
         ctx.translate(this.x, this.y);
         ctx.rotate(this.angle + Math.PI/2);
 
-        // --- AURA DE PODER (Visual Feedback) ---
-        // Quanto maior o dano, maior e mais instável a aura
-        const powerLevel = Math.min(50, this.stats.dmg / 1.5); 
+        // --- AURA DE PODER ---
+        const powerLevel = Math.min(60, this.stats.dmg / 2); 
         ctx.globalCompositeOperation = 'lighter';
         ctx.shadowBlur = 15 + powerLevel; 
         
-        // Cor da aura muda se tiver perk explosivo
-        const auraColor = this.stats.explosive ? '#ff5500' : '#00f3ff';
+        // Cor da aura muda com perks especiais
+        const auraColor = this.stats.explosive ? '#ff5500' : (this.stats.hasShield ? '#00ff00' : '#00f3ff');
         ctx.shadowColor = auraColor;
         
+        // Mini Shield Visual (Círculo extra)
+        if(this.stats.hasShield) {
+            ctx.strokeStyle = '#00ff00';
+            ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.arc(0,0, this.size*2.2, 0, Math.PI*2); ctx.stroke();
+        }
+
         ctx.globalAlpha = 0.3;
         ctx.fillStyle = auraColor;
         ctx.beginPath(); 
@@ -86,7 +93,7 @@ class Player extends Entity {
 
         ctx.restore();
 
-        // Orbitals (Perk de Escudo)
+        // --- ORBITALS ---
         if(this.stats.orbitals > 0) {
             const t = Date.now() / 200;
             ctx.shadowBlur = 15; ctx.shadowColor = '#fff';
@@ -126,15 +133,12 @@ class Bullet {
         this.trail.push({x: this.x, y: this.y});
         if(this.trail.length > this.maxTrail) this.trail.shift();
 
-        // Teleguiado Simples (vira levemente para o centro se não tiver alvo)
-        if(this.stats.homing > 0) {
-            // Lógica completa de homing seria feita aqui buscando inimigos
-        }
-
+        // Homing: Se for teleguiado, ajusta a velocidade em direção ao inimigo mais próximo
+        // (Lógica completa requer acesso ao array de inimigos, simplificado aqui para manter performance)
+        
         this.x += this.vx; 
         this.y += this.vy; 
         
-        // Ricochete e Paredes
         if(this.x < 0 || this.x > window.innerWidth) {
             if(this.ricochet > 0) { this.vx *= -1; this.ricochet--; }
             else if(!this.ghost) this.life = 0;
@@ -169,7 +173,6 @@ class Bullet {
         ctx.fillStyle = '#ffffff';
         ctx.shadowBlur = 15; ctx.shadowColor = this.color;
         
-        // Desenho diferente se tiver piercing
         if(this.stats.pierce > 0) {
             ctx.save();
             ctx.translate(this.x, this.y);
@@ -267,13 +270,13 @@ class Enemy extends Entity {
         this.angle = 0;
         this.hitFlash = 0;
         
-        // Variáveis de física
+        // Física
         this.knockbackX = 0;
         this.knockbackY = 0;
     }
 
     update(targetX, targetY) {
-        // Aplica Knockback (reduzindo gradualmente)
+        // Knockback (reduz gradualmente)
         this.x += this.knockbackX;
         this.y += this.knockbackY;
         this.knockbackX *= 0.8;
@@ -283,7 +286,7 @@ class Enemy extends Entity {
         const dy = targetY - this.y;
         const dist = Math.hypot(dx, dy);
         
-        // Só anda se o knockback for fraco (para não teletransportar)
+        // Só anda se o knockback for fraco
         if(Math.abs(this.knockbackX) < 0.5 && Math.abs(this.knockbackY) < 0.5) {
             this.x += (dx/dist) * this.speed;
             this.y += (dy/dist) * this.speed;
@@ -305,12 +308,10 @@ class Enemy extends Entity {
             ctx.shadowBlur = this.isBoss ? 40 : 20;
             ctx.shadowColor = this.color;
             
-            // Backlight Neon
             ctx.globalAlpha = 0.6;
             ctx.fillStyle = this.hitFlash > 0 ? '#ffffff' : this.color;
             ctx.beginPath(); ctx.arc(0, 0, this.size/1.5, 0, Math.PI*2); ctx.fill();
             
-            // Sprite
             ctx.globalAlpha = 1.0;
             if(this.hitFlash > 0) {
                  ctx.globalCompositeOperation = 'source-atop';

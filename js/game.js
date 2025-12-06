@@ -9,24 +9,24 @@ const Game = {
     player: null,
     enemies: [],
     bullets: [],
-    particles: [], // Array para explosões e efeitos
+    particles: [], // Explosões e efeitos
     
     keys: { w:false, a:false, s:false, d:false },
-    
-    // Variáveis de Efeito Visual
     shake: 0,
+    
+    // SISTEMA DE ROGUELITE
+    activePerks: [], // Lista de IDs que o jogador pegou NESTA partida
 
     init() {
         this.resize();
         window.addEventListener('resize', () => this.resize());
-        
         window.onkeydown = e => this.keys[e.key.toLowerCase()] = true;
         window.onkeyup = e => this.keys[e.key.toLowerCase()] = false;
 
         AudioSys.init();
         Shop.load();
 
-        // Só inicia o loop de renderização depois de carregar os Sprites
+        // Só inicia o loop depois de carregar as imagens
         Resources.init(() => {
             requestAnimationFrame(() => this.update());
         });
@@ -43,6 +43,12 @@ const Game = {
         document.getElementById('game-over-layer').classList.add('hidden');
         
         this.player = new Player(this.canvas.width/2, this.canvas.height/2);
+        
+        // RESET TOTAL PARA O INÍCIO DA RUN
+        // Garante que o player comece "pelado" e vá ganhando poder
+        this.player.resetStats(); 
+        this.activePerks = []; 
+
         this.enemies = [];
         this.bullets = [];
         this.particles = [];
@@ -56,30 +62,27 @@ const Game = {
 
     startLoop() {
         this.loop++;
-        this.timer = 10 + (this.loop * 0.5); // Tempo aumenta levemente a cada loop
+        this.timer = 10 + (this.loop * 0.5); // Dificuldade progressiva
         
-        // Limpa inimigos menores, mantém apenas o caos do Boss se houver
-        // (Isso impede que o jogo fique impossível muito rápido)
+        // Mantém apenas Bosses vivos, limpa o resto para a nova rodada
         this.enemies = this.enemies.filter(e => e.isBoss); 
         
-        // Update HUD
         document.getElementById('hud-loop').innerText = this.loop;
         
-        // --- ATUALIZAÇÃO DO FUNDO 3D (CSS) ---
+        // ATUALIZA O CSS DO FUNDO 3D
         const phase = DATA.phases[(this.loop - 1) % DATA.phases.length];
         
-        // Converter cor HEX para RGBA para o brilho do grid
+        // Converte Hex para RGBA para o brilho do grid
         let c = phase.grid.substring(1).split('');
         if(c.length===3) c= [c[0], c[0], c[1], c[1], c[2], c[2]];
         c= '0x'+c.join('');
         const rgbaColor = `rgba(${[(c>>16)&255, (c>>8)&255, c&255].join(',')}, 0.4)`;
 
-        // Injeta as cores no CSS para o grid mudar
         const root = document.documentElement;
         root.style.setProperty('--phase-color', rgbaColor);
         root.style.setProperty('--phase-bg', phase.bg);
 
-        // Lógica de Spawn (Boss a cada 5 loops)
+        // SPAWN BOSS OU WAVE
         const isBoss = this.loop % 5 === 0;
         
         if(isBoss) {
@@ -87,9 +90,11 @@ const Game = {
             this.enemies.push(boss);
             document.getElementById('boss-container').classList.remove('hidden');
             document.getElementById('boss-name').innerText = boss.name;
+            
+            // Efeito sonoro de alerta
+            AudioSys.play('ui'); 
         } else {
             document.getElementById('boss-container').classList.add('hidden');
-            // Dificuldade progressiva na quantidade
             const count = 3 + Math.floor(this.loop * 0.8);
             for(let i=0; i<count; i++) this.enemies.push(new Enemy(false, this.loop));
         }
@@ -98,15 +103,15 @@ const Game = {
     update() {
         requestAnimationFrame(() => this.update());
         
-        // --- LIMPEZA (TRANSPARÊNCIA PARA O 3D) ---
+        // Limpa o canvas para ver o fundo 3D CSS
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-        // --- SHAKE GLOBAL (Aplica no DIV #game-stage) ---
+        // --- SCREEN SHAKE ---
         const stage = document.getElementById('game-stage');
         if(this.shake > 0) {
             const sx = (Math.random() - 0.5) * this.shake;
             const sy = (Math.random() - 0.5) * this.shake;
-            stage.style.transform = `translate(${sx}px, ${sy}px)`; // Treme o mundo todo
+            stage.style.transform = `translate(${sx}px, ${sy}px)`;
             this.shake *= 0.9;
             if(this.shake < 0.5) this.shake = 0;
         } else {
@@ -114,8 +119,6 @@ const Game = {
         }
 
         if(this.state !== 'PLAYING') return;
-
-        // --- LÓGICA DO JOGO ---
 
         // Timer
         this.timer -= 1/60;
@@ -128,97 +131,26 @@ const Game = {
             this.openPerkSelection();
         }
 
-        // Player
+        // Updates
         this.player.update(this.keys);
         this.player.draw(this.ctx);
 
-        // Tiro Automático
         if(this.player.shootTimer >= this.player.stats.fireRate) {
             this.player.shootTimer = 0;
             this.fireBullet();
         }
 
-        // Balas
         this.bullets.forEach((b, i) => {
-            b.update();
-            b.draw(this.ctx);
+            b.update(); b.draw(this.ctx);
             if(b.life <= 0) this.bullets.splice(i, 1);
         });
 
-        // Partículas (Explosões)
         this.particles.forEach((p, i) => {
-            p.update();
-            p.draw(this.ctx);
+            p.update(); p.draw(this.ctx);
             if(p.life <= 0) this.particles.splice(i, 1);
         });
 
-        // Inimigos
-        this.enemies.forEach((e, i) => {
-            e.update(this.player.x, this.player.y);
-            e.draw(this.ctx);
-
-            // Colisão Player (Game Over)
-            const distP = Math.hypot(e.x - this.player.x, e.y - this.player.y);
-            if(distP < e.size/2 + this.player.size) {
-                this.gameOver();
-            }
-
-            // Colisão Bala-Inimigo
-            this.bullets.forEach((b, bi) => {
-                const distB = Math.hypot(e.x - b.x, e.y - b.y);
-                
-                // Hitbox um pouco generosa para ser satisfatório
-                if(distB < e.size/2 + b.size + 5) { 
-                    
-                    // Lógica para evitar dano múltiplo instantâneo (Pierce)
-                    if(b.hitList && b.hitList.includes(e)) return;
-                    if(!b.hitList) b.hitList = [];
-                    b.hitList.push(e);
-
-                    e.hp -= this.player.stats.dmg;
-                    e.hitFlash = 2; // Faz inimigo piscar branco
-                    
-                    // Aplica Knockback (Empurrão)
-                    if(this.player.stats.knockback > 0 && !e.isBoss) {
-                        const angle = Math.atan2(e.y - b.y, e.x - b.x);
-                        const force = this.player.stats.knockback * 5;
-                        e.knockbackX = Math.cos(angle) * force;
-                        e.knockbackY = Math.sin(angle) * force;
-                    }
-
-                    // Verifica Perfuração (Piercing)
-                    if(b.pierce > 0) {
-                        b.pierce--;
-                    } else {
-                        this.bullets.splice(bi, 1); // Remove se não tiver piercing
-                    }
-
-                    AudioSys.play('hit');
-                    
-                    // Faísca no impacto
-                    this.particles.push(new Particle(b.x, b.y, '#fff', 'debris'));
-
-                    // Morte do Inimigo
-                    if(e.hp <= 0 && !e.dead) {
-                        e.dead = true;
-                        this.enemies.splice(i, 1);
-                        this.score += e.isBoss ? 1000 : 100;
-                        document.getElementById('hud-score').innerText = this.score;
-                        
-                        // EFEITOS DE MORTE (JUICE)
-                        this.createExplosion(e.x, e.y, e.color, e.isBoss ? 4 : 1);
-                        this.shake += e.isBoss ? 20 : 5; // Aumenta a tremedeira
-
-                        if(e.isBoss) {
-                            this.score += 5000;
-                            this.openPerkSelection(); // Recompensa extra por matar Boss
-                        }
-                    }
-                }
-            });
-        });
-
-        // CORREÇÃO: Verifica se existe ALGUM boss vivo na tela para controlar a barra de HP
+        // Boss Bar Logic
         const activeBoss = this.enemies.find(e => e.isBoss);
         if (activeBoss) {
             document.getElementById('boss-container').classList.remove('hidden');
@@ -228,7 +160,115 @@ const Game = {
             document.getElementById('boss-container').classList.add('hidden');
         }
 
-        // Respawn de inimigos comuns se acabarem (para não ficar vazio)
+        // --- COLISÕES E FÍSICA ---
+        this.enemies.forEach((e, i) => {
+            e.update(this.player.x, this.player.y);
+            e.draw(this.ctx);
+
+            // 1. Colisão Inimigo -> Player (Morte ou Escudo)
+            const distP = Math.hypot(e.x - this.player.x, e.y - this.player.y);
+            if(distP < e.size/2 + this.player.size) {
+                if(this.player.stats.hasShield) {
+                    // DEFESA DO ESCUDO
+                    this.player.stats.hasShield = false; 
+                    this.createExplosion(this.player.x, this.player.y, '#00ff00', 5);
+                    this.shake += 20;
+                    
+                    // Empurra todos os inimigos próximos
+                    this.enemies.forEach(subE => {
+                        const angle = Math.atan2(subE.y - this.player.y, subE.x - this.player.x);
+                        subE.knockbackX = Math.cos(angle) * 30;
+                        subE.knockbackY = Math.sin(angle) * 30;
+                    });
+                    AudioSys.play('hit'); // Som de escudo quebrando
+                } else {
+                    this.gameOver();
+                }
+            }
+
+            // 2. Colisão Inimigo -> Orbitais (Dano Constante)
+            if(this.player.stats.orbitals > 0) {
+                const t = Date.now() / 200;
+                // O raio do orbital cresce com o dano para ficar mais épico
+                const orbitRadius = 60 + Math.min(60, this.player.stats.dmg / 2);
+                
+                for(let k=0; k<this.player.stats.orbitals; k++) {
+                    const angle = t + (k * (Math.PI*2)/this.player.stats.orbitals);
+                    const ox = this.player.x + Math.cos(angle) * orbitRadius;
+                    const oy = this.player.y + Math.sin(angle) * orbitRadius;
+                    
+                    if(Math.hypot(e.x - ox, e.y - oy) < e.size/2 + 10) {
+                        e.hp -= this.player.stats.dmg * 0.2; // Dano por tick
+                        this.particles.push(new Particle(ox, oy, '#fff', 'debris'));
+                        
+                        // Pequeno empurrão do orbital
+                        e.x += (e.x - this.player.x) * 0.05;
+                        e.y += (e.y - this.player.y) * 0.05;
+                    }
+                }
+            }
+
+            // 3. Colisão Inimigo -> Bala
+            this.bullets.forEach((b, bi) => {
+                const distB = Math.hypot(e.x - b.x, e.y - b.y);
+                if(distB < e.size/2 + b.size + 5) { 
+                    // Evita dano duplo no mesmo frame (para piercing)
+                    if(b.hitList && b.hitList.includes(e)) return;
+                    if(!b.hitList) b.hitList = [];
+                    b.hitList.push(e);
+
+                    e.hp -= this.player.stats.dmg;
+                    e.hitFlash = 2; // Flash branco
+                    
+                    // Empurrão (Knockback)
+                    if(this.player.stats.knockback > 0 && !e.isBoss) {
+                        const angle = Math.atan2(e.y - b.y, e.x - b.x);
+                        const force = this.player.stats.knockback * 5;
+                        e.knockbackX = Math.cos(angle) * force;
+                        e.knockbackY = Math.sin(angle) * force;
+                    }
+
+                    // Perfuração
+                    if(b.pierce > 0) b.pierce--;
+                    else this.bullets.splice(bi, 1);
+
+                    AudioSys.play('hit');
+                    this.particles.push(new Particle(b.x, b.y, '#fff', 'debris'));
+
+                    // MORTE
+                    if(e.hp <= 0 && !e.dead) {
+                        e.dead = true;
+                        this.enemies.splice(i, 1);
+                        this.score += e.isBoss ? 1000 : 100;
+                        document.getElementById('hud-score').innerText = this.score;
+                        
+                        this.createExplosion(e.x, e.y, e.color, e.isBoss ? 5 : 1);
+                        this.shake += e.isBoss ? 20 : 5;
+
+                        // Se tiver explosão em área (Perk)
+                        if(this.player.stats.explosive) {
+                            this.createExplosion(e.x, e.y, '#ff5500', 3);
+                            // Dano em área
+                            this.enemies.forEach(subE => {
+                                if(Math.hypot(subE.x - e.x, subE.y - e.y) < 150) {
+                                    subE.hp -= this.player.stats.dmg;
+                                    subE.hitFlash = 2;
+                                    subE.knockbackX += (subE.x - e.x) * 0.1;
+                                    subE.knockbackY += (subE.y - e.y) * 0.1;
+                                }
+                            });
+                        }
+
+                        if(e.isBoss) {
+                            this.score += 5000;
+                            this.openPerkSelection(); 
+                        }
+                    }
+                }
+            });
+        });
+
+        // Respawn constante
         const hasBoss = this.enemies.some(e => e.isBoss);
         if(!hasBoss && this.enemies.length < 3) {
              if(Math.random() < 0.05) this.enemies.push(new Enemy(false, this.loop));
@@ -239,34 +279,41 @@ const Game = {
 
     fireBullet() {
         const closest = this.getClosestEnemy();
-        let angle = closest 
-            ? Math.atan2(closest.y - this.player.y, closest.x - this.player.x)
-            : (this.keys.w ? -Math.PI/2 : 0);
+        // Tiro segue a direção do movimento (Nose direction)
+        // Se estiver parado, atira para onde estava olhando
+        let angle = this.player.angle; 
+
+        // Se tiver Homing, a BALA sai na direção do inimigo, mas a nave não vira sozinha
+        // Isso dá sensação de "míssil inteligente"
+        if(this.player.stats.homing > 0 && closest) {
+             angle = Math.atan2(closest.y - this.player.y, closest.x - this.player.x);
+        }
 
         const spawn = (ang) => {
             const s = this.player.stats;
-            // Cria a bala usando a classe Bullet (Entities.js)
             this.bullets.push(new Bullet(this.player.x, this.player.y, 
                 Math.cos(ang)*s.bulletSpeed, Math.sin(ang)*s.bulletSpeed, 60, s));
         };
 
-        spawn(angle);
+        spawn(angle); // Tiro principal
+        
         if(this.player.stats.backShot) spawn(angle + Math.PI);
         if(this.player.stats.sideShot) { spawn(angle + Math.PI/2); spawn(angle - Math.PI/2); }
-        if(this.player.stats.omniShot) { for(let i=0; i<8; i++) spawn(angle + (i * Math.PI/4)); }
         
-        // SEM EFEITOS DE RECUO NA NAVE (Apenas Shake e Som)
+        // OMNI SHOT (8 direções)
+        if(this.player.stats.omniShot) {
+            for(let i=0; i<8; i++) spawn(angle + (i * Math.PI/4));
+        }
+        
         this.shake += Math.min(5, 1 + (this.player.stats.dmg / 50)); 
-
         AudioSys.play('shoot');
     },
 
     createExplosion(x, y, color, sizeMultiplier = 1) {
-        // Onda de Choque
+        // Onda de choque
         this.particles.push(new Particle(x, y, color, 'shockwave'));
-        
-        // Confetes / Detritos
-        const count = 8 * sizeMultiplier;
+        // Detritos
+        const count = 10 * sizeMultiplier;
         for(let i=0; i<count; i++) {
             this.particles.push(new Particle(x, y, color, 'debris'));
         }
@@ -287,16 +334,17 @@ const Game = {
         const container = document.getElementById('perk-options');
         container.innerHTML = '';
 
-        // Filtra perks que o jogador COMPROU na loja e possui no inventário
-        const availablePool = DATA.perks.filter(p => Shop.playerData.ownedPerks.includes(p.id));
+        // 1. Pega tudo que comprei na loja
+        // 2. REMOVE o que eu já peguei NESTA run (this.activePerks)
+        const availablePool = DATA.perks.filter(p => 
+            Shop.playerData.ownedPerks.includes(p.id) && 
+            !this.activePerks.includes(p.id)
+        );
         
-        // Seleciona até 3 aleatórios
+        // Sorteia 3
         const options = [];
-        // Se tiver menos de 3 perks comprados, mostra os que tem
         const pickCount = Math.min(3, availablePool.length);
-
-        // Clona para não afetar o array original
-        const tempPool = [...availablePool];
+        const tempPool = [...availablePool]; // Cópia para sortear sem repetir
 
         for(let i=0; i<pickCount; i++) {
             if(tempPool.length === 0) break;
@@ -305,9 +353,10 @@ const Game = {
             tempPool.splice(rnd, 1);
         }
 
+        // Renderiza os Cards
         options.forEach(p => {
             const el = document.createElement('div');
-            el.className = `perk-card ${p.rarity}`; // Aplica classe de raridade para CSS
+            el.className = `perk-card ${p.rarity}`;
             el.innerHTML = `
                 <div class="icon">⚡</div>
                 <h3>${p.name}</h3>
@@ -315,18 +364,34 @@ const Game = {
             `;
             el.onclick = () => {
                 p.apply(this.player.stats);
+                this.activePerks.push(p.id); // Marca como pego nesta run
+                
                 document.getElementById('perk-layer').classList.add('hidden');
                 this.state = 'PLAYING';
-                this.startLoop(); // Avança para o próximo loop/fase
+                this.startLoop(); 
             };
             container.appendChild(el);
         });
         
-        // Se não tiver perks (deck vazio ou erro), avança direto para não travar o jogo
+        // Se não tiver mais cartas disponíveis (Deck vazio ou tudo pego)
         if(options.length === 0) {
             document.getElementById('perk-layer').classList.add('hidden');
             this.state = 'PLAYING';
             this.startLoop();
+        }
+    },
+
+    rerollPerks() {
+        // Custa 500 de Score da partida (não dinheiro da loja)
+        if(this.score >= 500) {
+            this.score -= 500;
+            document.getElementById('hud-score').innerText = this.score;
+            
+            // Toca som e recarrega a seleção
+            AudioSys.play('ui');
+            this.openPerkSelection();
+        } else {
+            alert("Score insuficiente! Precisa de 500 pts.");
         }
     },
 
@@ -338,7 +403,7 @@ const Game = {
         document.getElementById('end-score').innerText = this.score;
         document.getElementById('end-loop').innerText = this.loop;
         
-        // Conversão de Score para Créditos da Loja (10% do score)
+        // Converte Score em Créditos (10%)
         const credits = Math.floor(this.score * 0.1);
         document.getElementById('end-credits').innerText = credits;
         Shop.addCurrency(credits);

@@ -19,14 +19,15 @@ const AudioSys = {
         const t = this.ctx.currentTime;
 
         if(type === 'shoot') {
-            osc.frequency.setValueAtTime(300, t);
-            osc.frequency.exponentialRampToValueAtTime(50, t+0.1);
-            gain.gain.setValueAtTime(0.1, t);
-            gain.gain.exponentialRampToValueAtTime(0.01, t+0.1);
+            osc.type = 'sawtooth'; // Som mais agressivo
+            osc.frequency.setValueAtTime(400, t);
+            osc.frequency.exponentialRampToValueAtTime(100, t+0.1);
+            gain.gain.setValueAtTime(0.05, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t+0.1);
             osc.start(t); osc.stop(t+0.1);
         } else if(type === 'hit') {
             osc.type = 'square';
-            osc.frequency.setValueAtTime(100, t);
+            osc.frequency.setValueAtTime(150, t);
             gain.gain.setValueAtTime(0.05, t);
             gain.gain.linearRampToValueAtTime(0, t+0.1);
             osc.start(t); osc.stop(t+0.1);
@@ -36,26 +37,56 @@ const AudioSys = {
             gain.gain.setValueAtTime(0.05, t);
             gain.gain.exponentialRampToValueAtTime(0.001, t+0.1);
             osc.start(t); osc.stop(t+0.1);
+        } else if(type === 'coin') { // Som do Código Secreto
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(1000, t);
+            osc.frequency.linearRampToValueAtTime(2000, t+0.2);
+            gain.gain.setValueAtTime(0.1, t);
+            gain.gain.linearRampToValueAtTime(0, t+0.2);
+            osc.start(t); osc.stop(t+0.2);
         }
     }
 };
 
+const Systems = {
+    danteUsed: false,
+    checkDevCode() {
+        const input = document.getElementById('dev-code');
+        const msg = document.getElementById('dev-msg');
+        
+        if(input.value.toLowerCase() === "dante") {
+            if(!this.danteUsed) {
+                Shop.addCurrency(10000);
+                msg.innerText = "GOD MODE: +10000 CREDITS";
+                msg.style.color = "#00ff00";
+                AudioSys.play('coin');
+                this.danteUsed = true;
+            } else {
+                msg.innerText = "Não seja tão capitalista assim, não explore o Hijo";
+                msg.style.color = "#ff0000";
+            }
+        } else {
+            msg.innerText = "INVALID CODE";
+            msg.style.color = "#ff0000";
+        }
+        input.value = ""; // Limpa campo
+    }
+};
+
 const Shop = {
-    // Dados do jogador persistentes
     playerData: {
         currency: 0,
-        ownedPerks: [1000] // Começa com FORCE MK-1 desbloqueado (ou nenhum)
+        ownedPerks: [1000] // Começa com FORCE MK-1 desbloqueado
     },
 
     load() {
-        // Usamos uma chave nova 'NeonData_V3' para resetar saves antigos incompatíveis com a nova árvore
-        const saved = localStorage.getItem('NeonData_V3');
+        const saved = localStorage.getItem('NeonData_V4'); // Versão nova do save
         if(saved) this.playerData = JSON.parse(saved);
         this.updateUI();
     },
 
     save() {
-        localStorage.setItem('NeonData_V3', JSON.stringify(this.playerData));
+        localStorage.setItem('NeonData_V4', JSON.stringify(this.playerData));
         this.updateUI();
     },
 
@@ -76,26 +107,29 @@ const Shop = {
             const owned = this.playerData.ownedPerks.includes(perk.id);
             
             // LÓGICA DE ÁRVORE:
-            // O Perk só aparece se você tem o requisito (perk anterior) OU se já comprou este perk.
-            // Exceção: Perks nível 1 (req: null) sempre aparecem.
+            // Mostra se já tem OU se tem o requisito
             const reqMet = perk.req === null || this.playerData.ownedPerks.includes(perk.req);
             
-            if (!owned && !reqMet) return; // Esconde perks avançados bloqueados
+            if (!owned && !reqMet) return; // Esconde o card
 
             const el = document.createElement('div');
             el.className = `shop-card ${owned ? 'owned' : ''}`;
             
             let statusText = `${perk.cost} PTS`;
-            if(owned) statusText = "ADQUIRIDO";
-            else if(this.playerData.currency < perk.cost) statusText = `FALTA ${perk.cost - this.playerData.currency}`;
+            let costColor = 'var(--yellow)';
 
-            // Adiciona cor amarela se comprado, ou vermelho se sem saldo (via CSS ou inline)
-            const costStyle = owned ? 'color:var(--cyan)' : (this.playerData.currency < perk.cost ? 'color:#555' : 'color:var(--yellow)');
+            if(owned) {
+                statusText = "DESBLOQUEADO";
+                costColor = 'var(--cyan)';
+            } else if(this.playerData.currency < perk.cost) {
+                statusText = `FALTA ${perk.cost - this.playerData.currency}`;
+                costColor = '#555'; // Cinza se não tiver dinheiro
+            }
 
             el.innerHTML = `
                 <h3>${perk.name}</h3>
                 <p>${perk.desc}</p>
-                <div class="cost" style="${costStyle}">${statusText}</div>
+                <div class="cost" style="color:${costColor}">${statusText}</div>
             `;
             
             el.onclick = () => {
@@ -114,7 +148,6 @@ const Shop = {
     buy(perk) {
         if(this.playerData.ownedPerks.includes(perk.id)) return;
         
-        // Validação dupla de requisito
         if(perk.req !== null && !this.playerData.ownedPerks.includes(perk.req)) {
             alert("Bloqueado! Compre o nível anterior primeiro.");
             return;
@@ -124,13 +157,7 @@ const Shop = {
             this.playerData.currency -= perk.cost;
             this.playerData.ownedPerks.push(perk.id);
             this.save();
-            this.open(); // Refresh imediato na UI da loja
-        } else {
-            // Feedback visual rápido
-            const allCards = document.querySelectorAll('.shop-card');
-            // Acha o card clicado (gambiarra visual, idealmente passaríamos o elemento)
-            // Aqui apenas um alert ou som de erro serve
-            // AudioSys.play('error'); 
+            this.open(); // Refresh UI
         }
     },
 
@@ -159,12 +186,11 @@ const Resources = {
             
             img.onload = () => {
                 this.loaded++;
-                if(this.loaded === this.total) {
-                    callback();
-                }
+                if(this.loaded === this.total) callback();
             };
             
-            // Tratamento de erro básico (se não achar a imagem, carrega mesmo assim para não travar)
+            // Se der erro (arquivo não existe), continua o jogo sem travar
+            // O entities.js tem um fallback para desenhar quadrado se a imagem falhar
             img.onerror = () => {
                 console.warn(`Imagem não encontrada: ${this.toLoad[key]}`);
                 this.loaded++;
@@ -176,6 +202,8 @@ const Resources = {
     },
 
     get(name) {
-        return this.images[name];
+        // Retorna a imagem apenas se ela carregou com sucesso (width > 0)
+        const img = this.images[name];
+        return (img && img.complete && img.naturalWidth > 0) ? img : null;
     }
 };

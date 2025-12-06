@@ -318,4 +318,44 @@ canvas {
 .red-glow {
     color: var(--pink); text-shadow: 0 0 20px var(--pink);
     font-family: var(--font-title); font-size: 60px;
+/* Adições para Dev Console e Novos Elementos */
+
+.dev-console {
+    margin-top: 40px;
+    opacity: 0.5;
+    transition: 0.3s;
+}
+.dev-console:hover { opacity: 1; }
+
+#dev-code {
+    background: #000;
+    border: 1px solid #333;
+    color: var(--cyan);
+    font-family: var(--font-main);
+    padding: 10px;
+    text-align: center;
+    text-transform: uppercase;
+    width: 200px;
+    letter-spacing: 2px;
+}
+#dev-msg {
+    height: 20px;
+    font-size: 10px;
+    color: var(--pink);
+    margin-top: 5px;
+    font-family: var(--font-title);
+}
+
+.shop-info-text {
+    text-align: center;
+    color: #888;
+    margin-bottom: 10px;
+    font-size: 12px;
+}
+
+/* Escudo do Player */
+.shield-visual {
+    box-shadow: 0 0 20px var(--cyan), inset 0 0 20px var(--cyan);
+    border: 2px solid #fff;
+    border-radius: 50%;
 }
